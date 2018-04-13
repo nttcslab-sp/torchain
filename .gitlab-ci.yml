@@ -1,0 +1,38 @@
+before_script:
+- export HTTP_PROXY=proxy-u.ecl.ntt.co.jp:8080
+- export HTTPS_PROXY=proxy-u.ecl.ntt.co.jp:8080
+- export FTP_PROXY=proxy-u.ecl.ntt.co.jp:8080
+- export http_proxy=http://proxy-u.ecl.ntt.co.jp:8080/
+- export ftp_proxy=http://proxy-u.ecl.ntt.co.jp:8080/
+- uname -a
+- cat /etc/os-release
+
+
+pip:
+  image: continuumio/anaconda3
+  script:
+  - pip install http://download.pytorch.org/whl/cpu/torch-0.3.1-cp36-cp36m-linux_x86_64.whl 
+  - pip install pytest pytest-cov pytest-pep8
+  - apt-get update
+  - apt-get install make
+  - apt-get install -y g++
+  - which g++
+  - g++ -v
+  - make clean
+  - make LDFLAGS=-lstdc++ USE_CUDA=False gcov-cpu
+
+
+conda:
+  image: continuumio/anaconda3
+  allow_failure: true
+  script:
+  - conda update conda
+  - conda install -y pytorch-cpu -c pytorch
+  - pip install pytest pytest-cov pytest-pep8
+  - apt-get update
+  - apt-get install make
+  - apt-get install -y g++
+  - which g++
+  - g++ -v
+  - make clean
+  - make LDFLAGS=-lstdc++ USE_CUDA=False gcov-cpu

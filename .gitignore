@@ -1,0 +1,17 @@
+*
+*/
+
+
+!pytest.ini
+!.gitignore
+!.gitlab-ci.yml
+!*.md
+!*.py
+!*.h
+!*.cpp
+!*.cu
+!kaldiee
+!pthex
+!src
+!test
+!Makefile
