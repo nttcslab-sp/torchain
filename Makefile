@@ -12,8 +12,10 @@ CXX_RELEASE_FLAGS	=	-s -O3 -DNDEBUG
 CUDA_DEBUG_FLAGS	=	-O3 -DDEBUG
 CUDA_RELEASE_FLAGS	=   -O3 -DNDEBUG
 
-CXX_OPT=-pthread -Wsign-compare -fwrapv -Wall -fPIC -DWITH_CUDA -std=c++11 -fopenmp
-CUDA_OPT=-std=c++11 --default-stream per-thread --expt-extended-lambda --expt-relaxed-constexpr
+KLADI_ROOT := kaldi
+KALDI_OPT=-I$(KALDI_ROOT)/src -L$(KALDI_ROOT)/src/cudamatrix -lkaldi-cudamatrix -L$(KALDI_ROOT)/src/matrix -lkaldi-matrix -L$(KALDI_ROOT)/src/lib -lkaldi-base
+CXX_OPT=-pthread -Wsign-compare -fwrapv -Wall -fPIC -DWITH_CUDA -std=c++11 -fopenmp $(KALDI_OPT)
+CUDA_OPT=-std=c++11 --default-stream per-thread --expt-extended-lambda --expt-relaxed-constexpr $(KALDI_OPT)
 
 MY_LIB_LIBS := libmy_lib.a
 USE_CUDA = True
@@ -49,14 +51,27 @@ libmy_lib_cuda.a: $(cuda_objects)
 # NOTE: about ar rcs: https://stackoverflow.com/questions/29714300/what-does-the-rcs-option-in-ar-do
 
 
+kaldi:
+	git clone --depth 1 https://github.com/kaldi-asr/kaldi.git
+
+kaldi/src/cudamatrix/libkaldi-cudamatrix.so: kaldi
+	cd kaldi/tools && make
+	cd kaldi && ./configure
+	cd kaldi/src && make cudamatrix/libkaldi-cudamatrix.so
+
 # ==========
 #  Commands
 # ==========
 
 
-.PHONY: all clean test-gpu test-cpu install release debug
+.PHONY: all clean test-gpu test-cpu install release debug test
 
 all: release
+
+# $(KALDI_ROOT)/src/cudamatrix/libkaldi-cudamatrix.so $(KALDI_ROOT)/src/matrix/libkaldi-matrix.so
+test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(LD_LIBRARY_PATH)
+test: debug
+	python test/test.py
 
 release: CXX_OPT+=$(CXX_RELEASE_FLAGS)
 release: CUDA_OPT+=$(CUDA_RELEASE_FLAGS)

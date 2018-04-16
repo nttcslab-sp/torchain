@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Variable
 from my_package.modules.add import MyAddModule
-
+from my_package._ext import my_lib
 
 class MyNetwork(nn.Module):
     def __init__(self):
@@ -26,4 +26,11 @@ def test_net():
         print(input1 + input2)
 
 
-test_net()
+def test_aten():
+    if torch.cuda.is_available():
+        t = torch.cuda.FloatTensor([[1.0, 2.0], [3.0, 4.0]])
+        my_lib.my_lib_aten(t)
+
+
+# test_net()
+test_aten()
