@@ -1,9 +1,7 @@
 # PyTorch FFI package with Kaldi and ATen
 
 ``` console
-$ make all
-$ python build.py
-$ python test.py
+$ make test KALDI_ROOT=/data/work44/public/kaldi
 ```
 
 

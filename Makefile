@@ -13,16 +13,19 @@ CUDA_DEBUG_FLAGS	=	-O3 -DDEBUG
 CUDA_RELEASE_FLAGS	=   -O3 -DNDEBUG
 
 KLADI_ROOT := kaldi
-KALDI_OPT=-I$(KALDI_ROOT)/src -L$(KALDI_ROOT)/src/cudamatrix -lkaldi-cudamatrix -L$(KALDI_ROOT)/src/matrix -lkaldi-matrix -L$(KALDI_ROOT)/src/lib -lkaldi-base
-CXX_OPT=-pthread -Wsign-compare -fwrapv -Wall -fPIC -DWITH_CUDA -std=c++11 -fopenmp $(KALDI_OPT)
-CUDA_OPT=-std=c++11 --default-stream per-thread --expt-extended-lambda --expt-relaxed-constexpr $(KALDI_OPT)
+FST_ROOT := $(KALDI_ROOT)/tools/openfst
+KALDI_OPT=  -I$(KALDI_ROOT)/src -L$(KALDI_ROOT)/src/matrix -lkaldi-matrix -L$(KALDI_ROOT)/src/lib -lkaldi-base -I$(FST_ROOT)/include -L$(FST_ROOT)/lib -I$(KALDI_ROOT)/src/util  -lkaldi-util
 
 MY_LIB_LIBS := libmy_lib.a
 USE_CUDA = True
 
 ifeq ($(USE_CUDA),True) # 'nvcc' found
 	MY_LIB_LIBS += libmy_lib_cuda.a
+	KALDI_OPT += -L$(KALDI_ROOT)/src/cudamatrix -lkaldi-cudamatrix
 endif
+
+CXX_OPT=-pthread -Wsign-compare -fwrapv -Wall -fPIC -DWITH_CUDA -std=c++11 -fopenmp $(KALDI_OPT)
+CUDA_OPT=-std=c++11 --default-stream per-thread --expt-extended-lambda --expt-relaxed-constexpr $(KALDI_OPT)
 
 
 # ==============================
@@ -71,7 +74,7 @@ all: release
 # $(KALDI_ROOT)/src/cudamatrix/libkaldi-cudamatrix.so $(KALDI_ROOT)/src/matrix/libkaldi-matrix.so
 test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(LD_LIBRARY_PATH)
 test: debug
-	python test/test.py
+	PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
 
 release: CXX_OPT+=$(CXX_RELEASE_FLAGS)
 release: CUDA_OPT+=$(CUDA_RELEASE_FLAGS)
