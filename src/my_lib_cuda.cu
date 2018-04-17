@@ -6,6 +6,8 @@
 #include <THC/THC.h>
 #include <ATen/ATen.h>
 
+#include "common.hpp"
+
 
 extern "C"
 {
@@ -31,8 +33,13 @@ extern "C"
 
     int my_lib_aten(THCudaTensor* t)
     {
-        auto m = std::make_shared<kaldi::Matrix<kaldi::BaseFloat>>(3, 4);
         at::Tensor a = at::CUDA(at::kFloat).unsafeTensorFromTH(t, true);
+        std::cout << a << std::endl;
+        // a.pImpl->retain();
+        auto m = common::make_matrix<kaldi::CuSubMatrix<float>>(a);
+        a[0][0] = 23;
+        std::cout << m << std::endl;
+        m.Add(100);
         std::cout << a << std::endl;
         return 1;
     }

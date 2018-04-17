@@ -5,6 +5,8 @@
 #include <TH/TH.h>
 #include <ATen/ATen.h>
 
+#include "common.hpp"
+
 extern "C" {
 
     int my_lib_add_forward(THFloatTensor *input1, THFloatTensor *input2,
@@ -26,8 +28,12 @@ extern "C" {
 
 
     int my_lib_aten_cpu(THFloatTensor* t) {
-        auto m = std::make_shared<kaldi::Matrix<kaldi::BaseFloat>>(3, 4);
         at::Tensor a = at::CPU(at::kFloat).unsafeTensorFromTH(t, true);
+        std::cout << a << std::endl;
+        auto m = common::make_matrix<kaldi::SubMatrix<float>>(a);
+        a[0][0] = 23;
+        std::cout << m << std::endl;
+        m.Add(100);
         std::cout << a << std::endl;
         return 1;
     }
