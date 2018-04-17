@@ -1,3 +1,5 @@
+#define HAVE_CUDA 1
+
 #include <iostream>
 #include <memory>
 #include <matrix/kaldi-matrix.h>
@@ -34,13 +36,41 @@ extern "C"
     int my_lib_aten(THCudaTensor* t)
     {
         at::Tensor a = at::CUDA(at::kFloat).unsafeTensorFromTH(t, true);
-        std::cout << a << std::endl;
-        // a.pImpl->retain();
-        auto m = common::make_matrix<kaldi::CuSubMatrix<float>>(a);
-        a[0][0] = 23;
-        std::cout << m << std::endl;
-        m.Add(100);
-        std::cout << a << std::endl;
+        std::cout << "aten device: " << a.get_device() << std::endl;
+        //kaldi::CuDevice::Instantiate().AllowMultithreading();
+        //kaldi::CuDevice::Instantiate().SelectGpuId("yes");
+        //assert(kaldi::CuDevice::Instantiate().ActiveGpuId() == a.get_device());
+        // test sharing kaldi -> torch
+        {
+            auto m = std::make_shared<kaldi::CuMatrix<float>>(3, 4);
+            std::cout << *m << std::endl;
+            auto a = common::make_tensor(m);
+            a[0][0] = 23;
+            std::cout << *m << std::endl;
+            m->Add(100);
+            std::cout << *m << std::endl;
+            // FIXME: cannot cudaMemcpy in torch
+            // std::cout << a << std::endl;
+            // assert(*(a.toBackend(at::kCPU).template data<float>()) == 123);
+        }        
+        // return 1;
+
+        // test sharing torch -> kaldi
+        {
+            // FIXME: cannot do this here
+            // at::Tensor a = at::CUDA(at::kFloat).unsafeTensorFromTH(t, true);
+            // std::cout << a << std::endl;
+            auto m = common::make_matrix<kaldi::CuSubMatrix<float>>(a);
+            // FIXME: cannot do this here in torch
+            // auto a = common::make_tensor(m);
+            // a[0][0] = 23;
+            // std::cout << m << std::endl;
+            m.Add(100);
+            // std::cout << m << std::endl;
+            // std::cout << a << std::endl;
+            // assert(*(a.toBackend(at::kCPU).template data<float>()) == 123);
+        }
+
         return 1;
     }
 }

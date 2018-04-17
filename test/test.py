@@ -10,6 +10,9 @@ def test_aten():
     if torch.cuda.is_available():
         t = torch.cuda.FloatTensor([[1.0, 2.0], [3.0, 4.0]])
         my_lib.my_lib_aten(t)
+        print(t)
+        # t = torch.cuda.FloatTensor([[1.0, 2.0], [3.0, 4.0]])
+        # my_lib.my_lib_aten(t)
 
 
 # test_net()

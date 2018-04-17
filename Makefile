@@ -77,6 +77,10 @@ test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$
 test: debug
 	PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
 
+gdb: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(LD_LIBRARY_PATH)
+gdb: debug
+	PYTHONPATH=$(PWD):$(PYTHONPATH) gdb -ex r --args python test/test.py
+
 release: CXX_OPT+=$(CXX_RELEASE_FLAGS)
 release: CUDA_OPT+=$(CUDA_RELEASE_FLAGS)
 release: $(MY_LIB_LIBS)

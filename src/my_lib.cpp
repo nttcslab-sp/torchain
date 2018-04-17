@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <iostream>
 #include <memory>
 
@@ -28,13 +29,28 @@ extern "C" {
 
 
     int my_lib_aten_cpu(THFloatTensor* t) {
-        at::Tensor a = at::CPU(at::kFloat).unsafeTensorFromTH(t, true);
-        std::cout << a << std::endl;
-        auto m = common::make_matrix<kaldi::SubMatrix<float>>(a);
-        a[0][0] = 23;
-        std::cout << m << std::endl;
-        m.Add(100);
-        std::cout << a << std::endl;
+        // test sharing kaldi -> torch
+        {
+            auto m = std::make_shared<kaldi::Matrix<float>>(3, 4);
+            auto a = common::make_tensor(m);
+            a[0][0] = 23;
+            std::cout << *m << std::endl;
+            m->Add(100);
+            std::cout << a << std::endl;
+            assert(*(a[0][0].template data<float>()) == 123);
+        }
+
+        // test sharing torch -> kaldi
+        {
+            at::Tensor a = at::CPU(at::kFloat).unsafeTensorFromTH(t, true);
+            std::cout << a << std::endl;
+            auto m = common::make_matrix<kaldi::SubMatrix<float>>(a);
+            a[0][0] = 23;
+            std::cout << m << std::endl;
+            m.Add(100);
+            std::cout << a << std::endl;
+            assert(*(a[0][0].template data<float>()) == 123);
+        }
         return 1;
     }
 }
