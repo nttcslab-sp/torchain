@@ -12,7 +12,7 @@
 #include <cudamatrix/cu-matrix.h>
 
 #include "common.hpp"
-#include "chain_binding.hpp"
+
 
 extern "C"
 {
@@ -68,4 +68,5 @@ extern "C"
 
         return 1;
     }
+
 }

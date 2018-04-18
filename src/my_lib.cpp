@@ -7,7 +7,7 @@
 #include <ATen/ATen.h>
 
 #include "common.hpp"
-
+#include "chain_binding.hpp"
 
 extern "C" {
 

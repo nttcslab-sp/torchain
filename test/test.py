@@ -14,7 +14,10 @@ def test_aten():
         t.mm(t)
         # t = torch.cuda.FloatTensor([[1.0, 2.0], [3.0, 4.0]])
         # my_lib.my_lib_aten(t)
-
+        out = torch.cuda.FloatTensor([0])
+        grads = torch.cuda.FloatTensor([0])
+        my_lib.my_lib_test_chain(out, grads)
+        print(out.shape, grads.shape)
 
 # test_net()
 test_aten()
