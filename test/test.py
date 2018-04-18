@@ -11,6 +11,7 @@ def test_aten():
         t = torch.cuda.FloatTensor([[1.0, 2.0], [3.0, 4.0]])
         my_lib.my_lib_aten(t)
         print(t)
+        print(t * t)
         # t = torch.cuda.FloatTensor([[1.0, 2.0], [3.0, 4.0]])
         # my_lib.my_lib_aten(t)
 
