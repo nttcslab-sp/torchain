@@ -7,6 +7,7 @@
 #include <cudamatrix/cu-matrix.h>
 
 namespace common {
+    // at::ScalarType of C++ types  (e.g., ScalarTypeof<float>::value == at::kFloat)
     template <typename T>
     struct ScalarTypeof;
 
@@ -17,6 +18,7 @@ namespace common {
     AT_FORALL_SCALAR_TYPES(ATNN_SCALAR_TYPE_OF)
 #undef ATNN_SCALAR_TYPE_OF
 
+    // Element type of kaldi Matrix (e.g., ElemT<kaldi::Matrix<float>> == float)
     template <typename Matrix>
     using ElemT = typename std::decay<decltype(*(std::declval<Matrix>().Data()))>::type;
 
@@ -24,6 +26,7 @@ namespace common {
     // template <typename T>
     // constexpr at::ScalarType scalar_typeof = ScalarTypeof<T>::value;
 
+    // NOTE: maybe std::unique_ptr is better?
     template <typename Elem, at::Backend device, typename Matrix>
     at::Tensor make_tensor_impl(std::shared_ptr<Matrix> ptr) {
         constexpr auto s = ScalarTypeof<Elem>::value;
@@ -45,27 +48,23 @@ namespace common {
         return make_tensor_impl<Elem, at::kCUDA>(ptr);
     }
 
+    // WARNING: this tensor does not own Matrix
     template <typename Matrix>
     at::Tensor make_tensor(Matrix m) {
         using Elem = ElemT<Matrix>;
         constexpr auto s = ScalarTypeof<Elem>::value;
-        return at::getType(at::kCUDA, s).tensorFromBlob(m.Data(),
-                                                        {m.NumRows(), m.NumCols()},
-                                                        {m.Stride(), 1});
+        constexpr bool is_cpu = std::is_base_of<kaldi::MatrixBase<Elem>, Matrix>::value;
+        constexpr bool is_cuda = std::is_base_of<kaldi::CuMatrixBase<Elem>, Matrix>::value;
+        static_assert(is_cpu || is_cuda, "type Matrix should be derived from kaldi::MatrixBase or kaldi::CuMatrixBase");
+        constexpr auto b = is_cpu ? at::kCPU : at::kCUDA;
+        return at::getType(b, s).tensorFromBlob(
+            m.Data(),
+            {m.NumRows(), m.NumCols()},
+            {m.Stride(), 1});
     }
 
+    // WARNING: this matrix does not own at::Tensor
     template <typename Matrix>
-    struct Deleter {
-        at::Tensor t;
-
-        void operator()(Matrix* p) {
-            t.reset();
-            delete p;
-        }
-    };
-
-    template <typename Matrix>
-    // std::unique_ptr<Matrix, Deleter<Matrix>>
     Matrix make_matrix(at::Tensor t) {
         using Elem = ElemT<Matrix>;
 
@@ -82,8 +81,5 @@ namespace common {
         if (t.stride(1) != 1) throw std::runtime_error("at::Tensor.stride(1) != 1");
 
         return Matrix(t.template data<Elem>(), t.size(0), t.size(1), t.stride(0));
-        // auto ptr = new Matrix(
-        //     t.template data<Elem>(), t.size(0), t.size(1), t.stride(0));
-        // return std::unique_ptr<Matrix, decltype(deleter)>(ptr, deleter);
     }
 }
