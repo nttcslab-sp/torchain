@@ -33,44 +33,51 @@ extern "C"
         return 1;
     }
 
+    // re-initialize kaldi with gpu-id of tensor t
+    void set_kaldi_device(THCudaTensor* t) {
+        // NOTE: need to patch kaldi for making all the private fields
+        //       e.g., active_gpu_id_ public
+        auto gpu_id = THCudaTensor_getDevice(state, t);
+        auto& device = kaldi::CuDevice::Instantiate();
+        if (device.ActiveGpuId() == gpu_id) return; // maybe no need to reset
+        kaldi::CuDevice::Instantiate().AllowMultithreading();
+        device.active_gpu_id_ = gpu_id;
+        device.handle_ = THCState_getCurrentBlasHandle(state);
+        device.cusparse_handle_ = THCState_getCurrentSparseHandle(state);
+        device.properties_ = *THCState_getCurrentDeviceProperties(state);
+        assert(kaldi::CuDevice::Instantiate().Enabled());
+    }
+
     int my_lib_aten(THCudaTensor* t)
     {
+        // NOTE: do not forget to set
+        set_kaldi_device(t);
         at::Tensor a = at::CUDA(at::kFloat).unsafeTensorFromTH(t, true);
-        std::cout << "aten device: " << a.get_device() << std::endl;
-        kaldi::CuDevice::Instantiate().AllowMultithreading();
-        // kaldi::CuDevice::Instantiate().SelectGpuId("yes");
-        kaldi::CuDevice::Instantiate().active_gpu_id_ = a.get_device();
-        assert(kaldi::CuDevice::Instantiate().ActiveGpuId() == a.get_device());
-        assert(kaldi::CuDevice::Instantiate().Enabled());
+
+        // test cublas_copy (cublas handler works)
+        {
+            kaldi::CuMatrix<float> m(3, 3);
+            kaldi::CuVector<float> v(3);
+            m.CopyColFromVec(v, 0);
+        }
+
         // test sharing kaldi -> torch
         {
             auto m = std::make_shared<kaldi::CuMatrix<float>>(3, 4);
-            std::cout << *m << std::endl;
             auto a = common::make_tensor(m);
             a[0][0] = 23;
-            std::cout << *m << std::endl;
             m->Add(100);
-            std::cout << *m << std::endl;
-            // FIXME: cannot cudaMemcpy in torch
             std::cout << a << std::endl;
-            assert(*(a.toBackend(at::kCPU).template data<float>()) == 123);
-        }        
-        // return 1;
+            assert((a[0][0] == 123).all());
+        }
 
         // test sharing torch -> kaldi
         {
-            // FIXME: cannot do this here
-            // at::Tensor a = at::CUDA(at::kFloat).unsafeTensorFromTH(t, true);
-            // std::cout << a << std::endl;
             auto m = common::make_matrix<kaldi::CuSubMatrix<float>>(a);
-            // FIXME: cannot do this here in torch
-            auto a = common::make_tensor(m);
             a[0][0] = 23;
-            std::cout << m << std::endl;
             m.Add(100);
-            std::cout << m << std::endl;
             std::cout << a << std::endl;
-            assert(*(a.toBackend(at::kCPU).template data<float>()) == 123);
+            assert((a[0][0] == 123).all());
         }
 
         return 1;
