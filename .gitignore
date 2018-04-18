@@ -3,11 +3,13 @@
 
 
 !pytest.ini
+!.gitattributes
 !.gitignore
 !.gitlab-ci.yml
 !*.md
 !*.py
 !*.h
+!*.hpp
 !*.cpp
 !*.cu
 !kaldiee
