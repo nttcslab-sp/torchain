@@ -1,10 +1,21 @@
 #pragma once
 
+
+// TODO remove CUDA specific parts into another header
+#define HAVE_CUDA 1
+
 #include <assert.h>
 #include <memory>
 #include <ATen/ATen.h>
+#include <THC/THC.h>
 #include <matrix/kaldi-matrix.h>
+#include <cudamatrix/cu-device.h>
 #include <cudamatrix/cu-matrix.h>
+
+extern "C" {
+    // this symbol will be resolved automatically from PyTorch libs
+    extern THCState *state;
+}
 
 namespace common {
     // at::ScalarType of C++ types  (e.g., ScalarTypeof<float>::value == at::kFloat)
@@ -82,4 +93,41 @@ namespace common {
 
         return Matrix(t.template data<Elem>(), t.size(0), t.size(1), t.stride(0));
     }
+
+    // convient for frequently used type conversion
+    inline kaldi::SubMatrix<float> make_matrix(THFloatTensor* t) {
+        if (THFloatTensor_nDimension(t) != 2) throw std::runtime_error("dim != 2");
+        return kaldi::SubMatrix<float>(
+            THFloatTensor_data(t),
+            THFloatTensor_size(t, 0),
+            THFloatTensor_size(t, 1),
+            THFloatTensor_stride(t, 0)
+            );
+    }
+
+    inline kaldi::CuSubMatrix<float> make_matrix(THCudaTensor* t) {
+        if (THCudaTensor_nDimension(state, t) != 2) throw std::runtime_error("dim != 2");
+        return kaldi::CuSubMatrix<float>(
+            THCudaTensor_data(state, t),
+            THCudaTensor_size(state, t, 0),
+            THCudaTensor_size(state, t, 1),
+            THCudaTensor_stride(state, t, 0)
+            );
+    }
+
+    // re-initialize kaldi with gpu-id of tensor t
+    inline void set_kaldi_device(THCudaTensor* t) {
+        // NOTE: need to patch kaldi for making all the private fields
+        //       e.g., active_gpu_id_ public
+        auto gpu_id = THCudaTensor_getDevice(state, t);
+        auto& device = kaldi::CuDevice::Instantiate();
+        if (device.ActiveGpuId() == gpu_id) return; // maybe no need to reset
+        kaldi::CuDevice::Instantiate().AllowMultithreading();
+        device.active_gpu_id_ = gpu_id;
+        device.handle_ = THCState_getCurrentBlasHandle(state);
+        device.cusparse_handle_ = THCState_getCurrentSparseHandle(state);
+        device.properties_ = *THCState_getCurrentDeviceProperties(state);
+        assert(kaldi::CuDevice::Instantiate().Enabled());
+    }
+
 }

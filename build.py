@@ -17,6 +17,7 @@ if torch.cuda.is_available():
     defines += [('WITH_CUDA', None)]
     extra_objects += ["libmy_lib_cuda.a"]
     extra_link_args += ["-L" + os.environ["KALDI_ROOT"] + "/src/cudamatrix",  "-lkaldi-cudamatrix"]
+    extra_link_args += ["-L" + os.environ["KALDI_ROOT"] + "/src/chain",  "-lkaldi-chain"]
     with_cuda = True
 
 # need for linking

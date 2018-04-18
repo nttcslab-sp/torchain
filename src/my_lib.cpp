@@ -8,6 +8,7 @@
 
 #include "common.hpp"
 
+
 extern "C" {
 
     int my_lib_add_forward(THFloatTensor *input1, THFloatTensor *input2,
@@ -44,7 +45,8 @@ extern "C" {
         {
             at::Tensor a = at::CPU(at::kFloat).unsafeTensorFromTH(t, true);
             std::cout << a << std::endl;
-            auto m = common::make_matrix<kaldi::SubMatrix<float>>(a);
+            // auto m = common::make_matrix<kaldi::SubMatrix<float>>(a);
+            auto m = common::make_matrix(t);
             a[0][0] = 23;
             std::cout << m << std::endl;
             m.Add(100);

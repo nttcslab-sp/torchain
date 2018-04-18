@@ -14,7 +14,7 @@ CUDA_RELEASE_FLAGS	=   -O3 -DNDEBUG
 
 KALDI_ROOT := kaldi
 FST_ROOT := $(KALDI_ROOT)/tools/openfst
-KALDI_OPT=  -I$(KALDI_ROOT)/src -L$(KALDI_ROOT)/src/matrix -lkaldi-matrix -L$(KALDI_ROOT)/src/lib -lkaldi-base -I$(FST_ROOT)/include -L$(FST_ROOT)/lib -I$(KALDI_ROOT)/src/util  -lkaldi-util
+KALDI_OPT=  -isystem $(KALDI_ROOT)/src -L$(KALDI_ROOT)/src/matrix -lkaldi-matrix -L$(KALDI_ROOT)/src/lib -lkaldi-base -isystem $(FST_ROOT)/include -L$(FST_ROOT)/lib
 
 MY_LIB_LIBS := libmy_lib.a
 USE_CUDA := True
@@ -25,7 +25,7 @@ CUDA_OPT=-std=c++11 --default-stream per-thread --expt-extended-lambda --expt-re
 ifeq ($(USE_CUDA),True) # 'nvcc' found
 	CXX_OPT += -DWITH_CUDA
 	MY_LIB_LIBS += libmy_lib_cuda.a
-	KALDI_OPT += -L$(KALDI_ROOT)/src/cudamatrix -lkaldi-cudamatrix
+	KALDI_OPT += -L$(KALDI_ROOT)/src/cudamatrix -lkaldi-cudamatrix -L$(KALDI_ROOT)/src/chain -lkaldi-chain
 endif
 
 
@@ -39,11 +39,12 @@ objects := $(objects:.cpp=.o)
 cuda_objects := $(wildcard src/*.cu)
 cuda_objects := $(cuda_objects:.cu=.o)
 
+headers := $(wildcard src/*.hpp)
 
-src/%.o: src/%.cpp
+src/%.o: src/%.cpp $(headers)
 	g++ -c $< -o $@ $(CXX_OPT) $(TH_INCLUDE)
 
-src/%.o: src/%.cu
+src/%.o: src/%.cu $(headers)
 	nvcc -c $< -o $@ -Xcompiler "$(CXX_OPT)" $(THC_INCLUDE) -I /usr/local/cuda/samples/common/inc $(CUDA_OPT)
 
 libmy_lib.a: $(objects)
@@ -73,7 +74,7 @@ kaldi/src/cudamatrix/libkaldi-cudamatrix.so: kaldi
 all: release
 
 # $(KALDI_ROOT)/src/cudamatrix/libkaldi-cudamatrix.so $(KALDI_ROOT)/src/matrix/libkaldi-matrix.so
-test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(LD_LIBRARY_PATH)
+test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(KALDI_ROOT)/src/chain:$(LD_LIBRARY_PATH)
 test: debug
 	PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
 

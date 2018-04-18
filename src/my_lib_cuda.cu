@@ -2,20 +2,20 @@
 
 #include <iostream>
 #include <memory>
-#include <matrix/kaldi-matrix.h>
-#include <cudamatrix/cu-matrix.h>
 
+// torch
 #include <THC/THC.h>
 #include <ATen/ATen.h>
 
-#include "common.hpp"
+// kaldi
+#include <matrix/kaldi-matrix.h>
+#include <cudamatrix/cu-matrix.h>
 
+#include "common.hpp"
+#include "chain_binding.hpp"
 
 extern "C"
 {
-    // this symbol will be resolved automatically from PyTorch libs
-    extern THCState *state;
-
     int my_lib_add_forward_cuda(THCudaTensor *input1, THCudaTensor *input2,
                                 THCudaTensor *output)
     {
@@ -33,25 +33,10 @@ extern "C"
         return 1;
     }
 
-    // re-initialize kaldi with gpu-id of tensor t
-    void set_kaldi_device(THCudaTensor* t) {
-        // NOTE: need to patch kaldi for making all the private fields
-        //       e.g., active_gpu_id_ public
-        auto gpu_id = THCudaTensor_getDevice(state, t);
-        auto& device = kaldi::CuDevice::Instantiate();
-        if (device.ActiveGpuId() == gpu_id) return; // maybe no need to reset
-        kaldi::CuDevice::Instantiate().AllowMultithreading();
-        device.active_gpu_id_ = gpu_id;
-        device.handle_ = THCState_getCurrentBlasHandle(state);
-        device.cusparse_handle_ = THCState_getCurrentSparseHandle(state);
-        device.properties_ = *THCState_getCurrentDeviceProperties(state);
-        assert(kaldi::CuDevice::Instantiate().Enabled());
-    }
-
     int my_lib_aten(THCudaTensor* t)
     {
         // NOTE: do not forget to set
-        set_kaldi_device(t);
+        common::set_kaldi_device(t);
         at::Tensor a = at::CUDA(at::kFloat).unsafeTensorFromTH(t, true);
 
         // test cublas_copy (cublas handler works)
@@ -73,7 +58,8 @@ extern "C"
 
         // test sharing torch -> kaldi
         {
-            auto m = common::make_matrix<kaldi::CuSubMatrix<float>>(a);
+            // auto m = common::make_matrix<kaldi::CuSubMatrix<float>>(a);
+            auto m = common::make_matrix(t);
             a[0][0] = 23;
             m.Add(100);
             std::cout << a << std::endl;
