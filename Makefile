@@ -12,6 +12,7 @@ CXX_RELEASE_FLAGS	=	-s -O3 -DNDEBUG
 CUDA_DEBUG_FLAGS	=	-O3 -DDEBUG
 CUDA_RELEASE_FLAGS	=   -O3 -DNDEBUG
 
+VENV_ROOT := /data/work70/skarita/exp/chime5/venv/bin/activate
 KALDI_ROOT := kaldi
 FST_ROOT := $(KALDI_ROOT)/tools/openfst
 KALDI_OPT=  -isystem $(KALDI_ROOT)/src -L$(KALDI_ROOT)/src/matrix -lkaldi-matrix -L$(KALDI_ROOT)/src/lib -lkaldi-base -isystem $(FST_ROOT)/include -L$(FST_ROOT)/lib
@@ -73,10 +74,11 @@ kaldi/src/cudamatrix/libkaldi-cudamatrix.so: kaldi
 
 all: release
 
-# $(KALDI_ROOT)/src/cudamatrix/libkaldi-cudamatrix.so $(KALDI_ROOT)/src/matrix/libkaldi-matrix.so
+# . $(KALDI_ROOT)/tools/config/common_path.sh
 test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(KALDI_ROOT)/src/chain:$(KALDI_ROOT)/src/nnet3:$(LD_LIBRARY_PATH)
 test: debug
-	. $(KALDI_ROOT)/tools/config/common_path.sh && PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
+	# cd  $(KALDI_ROOT)/egs/chime5/s5/ && source ./path.sh && cd - && source $(VENV_ROOT) &&
+	PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
 
 gdb: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(LD_LIBRARY_PATH)
 gdb: debug

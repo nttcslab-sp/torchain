@@ -46,7 +46,7 @@ extern "C" {
         delete static_cast<ExampleReader*>(reader_ptr);
     }
 
-    // TODO create THFloatTensor version
+    // NOTE: this function returns size of inputs instead of success/fail
     int my_lib_example_feats(void* reader_ptr, THFloatTensor* input, THFloatTensor* aux) {
         auto reader = static_cast<ExampleReader*>(reader_ptr);
         if (reader->Done()) return 0; // fail
