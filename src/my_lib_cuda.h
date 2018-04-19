@@ -12,4 +12,3 @@ int my_lib_ComputeChainObjfAndDeriv(
         float l2_regularize, float leaky_hmm_coefficient, float xent_regularize);
 
 int my_lib_test_chain(THCudaTensor* out, THCudaTensor* grad);
-

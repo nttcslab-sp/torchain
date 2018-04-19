@@ -12,6 +12,7 @@
 #include <matrix/kaldi-matrix.h>
 #include <cudamatrix/cu-matrix.h>
 #include <chain/chain-training.h>
+#include <nnet3/nnet-chain-example.h>
 
 #include "common.hpp"
 #include "./chain-supervision-test.hpp"
@@ -300,5 +301,4 @@ extern "C" {
 
         return 1;
     }
-
 }
