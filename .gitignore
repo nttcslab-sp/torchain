@@ -12,8 +12,8 @@
 !*.hpp
 !*.cpp
 !*.cu
-!kaldiee
-!pthex
+!my_package
+my_package/_ext
 !src
 !test
 !Makefile

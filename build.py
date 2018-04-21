@@ -19,6 +19,7 @@ if torch.cuda.is_available():
     extra_link_args += ["-L" + os.environ["KALDI_ROOT"] + "/src/cudamatrix",  "-lkaldi-cudamatrix"]
     extra_link_args += ["-L" + os.environ["KALDI_ROOT"] + "/src/chain",  "-lkaldi-chain"]
     extra_link_args += ["-L" + os.environ["KALDI_ROOT"] + "/src/nnet3",  "-lkaldi-nnet3"]
+    # extra_link_args += ["-L" + os.environ["KALDI_ROOT"] + "/src/lib",  "-lkaldi-fstext"]
     with_cuda = True
 
 # need for linking

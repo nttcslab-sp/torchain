@@ -5,10 +5,12 @@ int my_lib_ComputeChainObjfAndDeriv(
         // inputs
         void* den_graph_ptr, void* supervision_ptr, THCudaTensor* nnet_output_ptr,
         // outputs
-        float* objf, float* l2_term, float* weight,
+        // float* objf, float* l2_term, float* weight,
+        THFloatTensor* results,
         // grads
         THCudaTensor* nnet_output_deriv_ptr, THCudaTensor* xent_output_deriv_ptr,
         // hyper params
         float l2_regularize, float leaky_hmm_coefficient, float xent_regularize);
 
 int my_lib_test_chain(THCudaTensor* out, THCudaTensor* grad);
+void my_lib_set_kaldi_device(THCudaTensor* t);

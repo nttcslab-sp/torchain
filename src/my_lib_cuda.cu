@@ -33,6 +33,10 @@ extern "C"
         return 1;
     }
 
+    void my_lib_set_kaldi_device(THCudaTensor* t) {
+        common::set_kaldi_device(t);
+    }
+
     int my_lib_aten(THCudaTensor* t)
     {
         // NOTE: do not forget to set

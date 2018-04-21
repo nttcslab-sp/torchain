@@ -75,11 +75,25 @@ extern "C" {
         delete static_cast<Supervision*>(supervision_ptr);
     }
 
-    void* my_lib_denominator_graph_new(const char* rxfilename, void* supervision_ptr) {
+    int my_lib_supervision_num_pdf(void* supervision_ptr) {
+        auto supervision = static_cast<Supervision*>(supervision_ptr);
+        return supervision->label_dim;
+    }
+
+    int my_lib_supervision_num_sequence(void* supervision_ptr) {
+        auto supervision = static_cast<Supervision*>(supervision_ptr);
+        return supervision->num_sequences;
+    }
+
+    int my_lib_supervision_num_frame(void* supervision_ptr) {
+        auto supervision = static_cast<Supervision*>(supervision_ptr);
+        return supervision->frames_per_sequence;
+    }
+
+    void* my_lib_denominator_graph_new(const char* rxfilename, int num_pdfs) {
         fst::StdVectorFst den_fst;
         fst::ReadFstKaldi(rxfilename, &den_fst);
-        auto supervision = static_cast<Supervision*>(supervision_ptr);
-        auto den_graph = new kaldi::chain::DenominatorGraph(den_fst, supervision->label_dim);
+        auto den_graph = new kaldi::chain::DenominatorGraph(den_fst, num_pdfs);
         return static_cast<void*>(den_graph);
     }
 

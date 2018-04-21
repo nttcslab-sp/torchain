@@ -97,6 +97,11 @@ void _ChainTrainingTest(
                                  &objf_modified, &l2_term_modified,
                                  &weight_modified,
                                  NULL);
+        // ComputeChainObjfAndDeriv(&den_graph, &supervision,
+        //                          nnet_output_perturbed,
+        //                          &objf_modified, &l2_term_modified,
+        //                          &weight_modified,
+        //                          NULL);
 
         observed_objf_changes(p) = objf_modified - objf;
     }
@@ -203,7 +208,8 @@ extern "C" {
         // inputs
         void* den_graph_ptr, void* supervision_ptr, THCudaTensor* nnet_output_ptr,
         // outputs
-        float* objf, float* l2_term, float* weight,
+        // float* objf, float* l2_term, float* weight,
+        THFloatTensor* results,
         // grads
         THCudaTensor* nnet_output_deriv_ptr, THCudaTensor* xent_output_deriv_ptr,
         // hyper params
@@ -220,8 +226,10 @@ extern "C" {
         opts.l2_regularize = l2_regularize;
         opts.leaky_hmm_coefficient = leaky_hmm_coefficient;
         opts.xent_regularize = 0.0f; // xent_regularize;
+        float* data = THFloatTensor_data(results);
         kaldi::chain::ComputeChainObjfAndDeriv(opts, den_graph, supervision, nnet_output,
-                                               objf, l2_term, weight, &nnet_output_deriv, nullptr);
+                                               data, data+1, data+2,
+                                               &nnet_output_deriv); // , nullptr);
         return 1;
     }
 
