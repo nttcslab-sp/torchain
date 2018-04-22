@@ -12,8 +12,8 @@
 !*.hpp
 !*.cpp
 !*.cu
-!my_package
-my_package/_ext
+!torchain
+torchain/_ext
 !src
 !test
 !Makefile
