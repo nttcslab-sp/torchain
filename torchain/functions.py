@@ -1,5 +1,6 @@
 # functions/add.py
 import torch
+from torchain import io
 from torch.autograd import Function
 from ._ext import my_lib
 ffi = my_lib._ffi
@@ -18,7 +19,7 @@ class ChainResults:
         return -(self.data[0] / self.data[2] + self.data[1])
 
 
-class ChainLoss(Function):
+class _ChainLoss(Function):
     """
    Lattice-free MMI loss function
 
@@ -62,6 +63,10 @@ class ChainLoss(Function):
     def forward(ctx, input, results, den_graph, supervision,
                 l2_regularize, leaky_hmm_coefficient):
         assert input.is_cuda, "Only CUDA implementation is available"
+        if isinstance(supervision, io.Supervision):
+            supervision = supervision.ptr
+        if isinstance(den_graph, io.DenominatorGraph):
+            den_graph = den_graph.ptr
         mmi_grad = input.new(*input.shape)
         xent_grad = ffi.NULL # input.new()
         my_lib.my_lib_ComputeChainObjfAndDeriv(
@@ -79,7 +84,10 @@ class ChainLoss(Function):
 
 def chain_loss(input, den_graph, supervision,
                l2_regularize=0.0, leaky_hmm_coefficient=1e-5):
+    if input.dim() == 3:
+        n_pdf = input.shape[1]
+        input = input.transpose(1, 2).contiguous().view(-1, n_pdf)
     results = ChainResults()
-    loss = ChainLoss.apply(input, results, den_graph, supervision,
-                           l2_regularize, leaky_hmm_coefficient)
+    loss = _ChainLoss.apply(input, results, den_graph, supervision,
+                            l2_regularize, leaky_hmm_coefficient)
     return loss, results

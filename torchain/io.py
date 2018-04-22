@@ -47,7 +47,7 @@ class Example:
         my_lib.my_lib_example_reader_free(self.ptr)
 
     def next(self):
-        return my_lib.my_lib_example_reader_next(example) == 1
+        return my_lib.my_lib_example_reader_next(self.ptr) == 1
 
     @property
     def supervision(self):
@@ -57,7 +57,7 @@ class Example:
     def inputs(self):
         inp = torch.FloatTensor()
         aux = torch.FloatTensor()
-        n = my_lib.my_lib_example_feats(example, inp, aux)
+        n = my_lib.my_lib_example_feats(self.ptr, inp, aux)
         if n == 1:
             return inp, None
         elif n == 2:
@@ -68,8 +68,8 @@ class Example:
     def __iter__(self):
         while self.next():
             supervision = self.supervision
-            n_batch, n_frame, n_pdf = supervision.shape
+            n_batch, n_out_frame, n_pdf = supervision.shape
             inp, aux = self.inputs
-            if inp:
-                inp = inp.view(n_batch, n_frame, inp.shape[1]).transpose(0, 1)
+            if inp is not None:
+                inp = inp.view(n_batch, -1, inp.shape[1]).transpose(1, 2)
             yield (inp, aux), supervision

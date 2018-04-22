@@ -87,13 +87,14 @@ def test_example():
     my_lib.my_lib_example_reader_free(example)
 
 
-def test_io(self):
+def test_io():
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
     example_rs = "ark:/home/skarita/work/repos/extension-ffi-kaldi/package/mb.ark"
     io.set_kaldi_device()
     example = io.Example(example_rs)
     n_pdf = example.supervision.n_pdf
+    print(n_pdf)
     den_graph = io.DenominatorGraph(den_fst_rs, n_pdf)
     model = torch.nn.Sequential(
         torch.nn.Conv1d(40, 512, 29, 3),
@@ -102,18 +103,22 @@ def test_io(self):
     )
     model.cuda()
     opt = torch.optim.SGD(model.parameters(), lr=1e-6)
+    count = 0
     for (mfcc, ivec), supervision in io.Example(example_rs):
-        n_batch, n_frames = supervision.shape
+        n_batch, n_out_frames, n_pdf = supervision.shape
         x = Variable(mfcc).cuda()
         pred = model(x)
-        pred = pred.transpose(1, 2).contiguous().view(-1, n_pdf)
-        loss, results = chain_loss(pred, den_graph.ptr, supervision.ptr, l2_regularize=0.01)
+        loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01)
         opt.zero_grad()
         loss.backward()
         opt.step()
         print(results)
+        count += 1
+        if count > 5:
+            break
 
 
 if __name__ == "__main__":
     # test_aten()
     test_example()
+    test_io()
