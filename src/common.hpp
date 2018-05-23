@@ -4,12 +4,13 @@
 // TODO remove CUDA specific parts into another header
 #define HAVE_CUDA 1
 
+#include "cu-device.h"
+
 #include <assert.h>
 #include <memory>
 #include <ATen/ATen.h>
 #include <THC/THC.h>
 #include <matrix/kaldi-matrix.h>
-#include <cudamatrix/cu-device.h>
 #include <cudamatrix/cu-matrix.h>
 
 extern "C" {

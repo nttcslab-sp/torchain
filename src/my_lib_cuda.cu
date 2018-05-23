@@ -9,7 +9,7 @@
 
 // kaldi
 #include <matrix/kaldi-matrix.h>
-#include <cudamatrix/cu-matrix.h>
+// #include <cudamatrix/cu-matrix.h>
 
 #include "common.hpp"
 
