@@ -92,51 +92,34 @@ def test_example():
 
 
 def test_io():
-
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
-    example_rs = "ark:/home/skarita/work/repos/extension-ffi-kaldi/package/mb.ark"
-    example_rs = "ark:cat tmp.ark |"
-
-    import subprocess
-    import os
-    FIFO = 'mypipe.ark'
-    try:
-        os.mkfifo(FIFO)
-    except OSError as oe:
-        if oe.errno != os.errno.EEXIST:
-            raise
-
-    cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:" + exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/egs/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:" + FIFO + " &" # "ttmp.ark &"
-    subprocess.run(cmd, shell=True)
-    example_rs = "ark,bg:" + FIFO
-
-    io.set_kaldi_device()
-    # example = io.Example(example_rs)
-    # n_pdf = example.supervision.n_pdf
-    # print(n_pdf)
-    n_pdf = 2928
-    den_graph = io.DenominatorGraph(den_fst_rs, n_pdf)
-    model = torch.nn.Sequential(
-        torch.nn.Conv1d(40, 512, 29, 3),
-        torch.nn.ReLU(),
-        torch.nn.Conv1d(512, n_pdf, 1, 1)
-    )
-    model.cuda()
-    print(model)
-    opt = torch.optim.SGD(model.parameters(), lr=1e-6)
-    count = 0
-    for (mfcc, ivec), supervision in io.Example(example_rs):
-        x = Variable(mfcc).cuda()
-        pred = model(x)
-        loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01)
-        opt.zero_grad()
-        loss.backward()
-        opt.step()
-        print(count, results)
-        count += 1
-        if count > 20:
-            break
+    cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:" + exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/egs/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:-"
+    with io.open_example(cmd) as example:
+        n_pdf = example.supervision.n_pdf
+        print(n_pdf)
+        # n_pdf = 2928
+        den_graph = io.DenominatorGraph(den_fst_rs, n_pdf)
+        model = torch.nn.Sequential(
+            torch.nn.Conv1d(40, 512, 29, 3),
+            torch.nn.ReLU(),
+            torch.nn.Conv1d(512, n_pdf, 1, 1)
+        )
+        model.cuda()
+        print(model)
+        opt = torch.optim.SGD(model.parameters(), lr=1e-6)
+        count = 0
+        for (mfcc, ivec), supervision in example:
+            x = Variable(mfcc).cuda()
+            pred = model(x)
+            loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            print(count, results)
+            count += 1
+            if count > 20:
+                break
 
 
 if __name__ == "__main__":

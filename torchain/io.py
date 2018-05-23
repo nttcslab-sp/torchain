@@ -73,3 +73,21 @@ class Example:
             if inp is not None:
                 inp = inp.view(n_batch, -1, inp.shape[1]).transpose(1, 2)
             yield (inp, aux), supervision
+
+
+@contextmanager
+def open_example(cmd):
+    import subprocess
+    import os
+    import tempfile
+    tmpdir = tempfile.mkdtemp()
+    FIFO = os.path.join(tmpdir, 'myfifo.ark')
+    os.mkfifo(FIFO)
+    subprocess.run(cmd + " > " + FIFO + " &", shell=True)
+    example_rs = "ark,bg:" + FIFO
+    set_kaldi_device()
+    example = Example(example_rs)
+    yield example
+    os.remove(FIFO)
+    os.rmdir(tmpdir)
+
