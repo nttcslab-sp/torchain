@@ -22,7 +22,7 @@ ffi = create_extension(
     sources=[],
     define_macros=[('WITH_CUDA', None)],
     relative_to=__file__,
-    extra_compile_args=["-fopenmp"],
+    extra_compile_args=["-std=c99", "-fopenmp"],
     extra_link_args=extra_link_args,
     extra_objects=extra_objects,
     with_cuda=True,

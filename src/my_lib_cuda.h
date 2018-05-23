@@ -1,6 +1,6 @@
 int my_lib_add_forward_cuda(THCudaTensor *input1, THCudaTensor *input2, THCudaTensor *output);
 int my_lib_add_backward_cuda(THCudaTensor *grad_output, THCudaTensor *grad_input);
-int my_lib_aten(THCudaTensor* t);
+// int my_lib_aten(THCudaTensor* t);
 int my_lib_ComputeChainObjfAndDeriv(
         // inputs
         void* den_graph_ptr, void* supervision_ptr, THCudaTensor* nnet_output_ptr,

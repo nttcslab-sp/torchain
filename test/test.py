@@ -34,6 +34,8 @@ def test_example():
     my_lib.my_lib_set_kaldi_device(torch.cuda.FloatTensor(1))
     example_rs = "ark:/home/skarita/work/repos/extension-ffi-kaldi/package/mb.ark"
 
+    # example_rs = "ark:cat tmp.ark |"
+
     example = my_lib.my_lib_example_reader_new(cstr(example_rs))
     supervision = my_lib.my_lib_supervision_new(example)
     n_pdf = my_lib.my_lib_supervision_num_pdf(supervision)
@@ -55,6 +57,7 @@ def test_example():
     opt = torch.optim.SGD(model.parameters(), lr=1e-6)
     for i in range(20):
         # iter
+        print("epoch", i)
         supervision = my_lib.my_lib_supervision_new(example)
         n_out_frame = my_lib.my_lib_supervision_num_frame(supervision)
         mfcc = torch.FloatTensor([0])
@@ -91,6 +94,8 @@ def test_io():
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
     example_rs = "ark:/home/skarita/work/repos/extension-ffi-kaldi/package/mb.ark"
+    # example_rs = "ark:cat tmp.ark |"
+
     io.set_kaldi_device()
     example = io.Example(example_rs)
     n_pdf = example.supervision.n_pdf
@@ -105,16 +110,15 @@ def test_io():
     opt = torch.optim.SGD(model.parameters(), lr=1e-6)
     count = 0
     for (mfcc, ivec), supervision in io.Example(example_rs):
-        n_batch, n_out_frames, n_pdf = supervision.shape
         x = Variable(mfcc).cuda()
         pred = model(x)
         loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01)
         opt.zero_grad()
         loss.backward()
         opt.step()
-        print(results)
+        print(count, results)
         count += 1
-        if count > 5:
+        if count > 20:
             break
 
 
@@ -122,3 +126,4 @@ if __name__ == "__main__":
     # test_aten()
     test_example()
     test_io()
+    

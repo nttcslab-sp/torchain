@@ -43,7 +43,9 @@ extern "C" {
     }
 
     void my_lib_example_reader_free(void* reader_ptr) {
-        delete static_cast<ExampleReader*>(reader_ptr);
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
+        reader->Close();
+        delete reader;
     }
 
     // NOTE: this function returns size of inputs instead of success/fail
