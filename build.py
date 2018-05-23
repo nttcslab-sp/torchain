@@ -19,6 +19,7 @@ extra_objects = [os.path.join(pwd, fname) for fname in extra_objects]
 ffi = create_extension(
     'torchain._ext.my_lib',
     headers=headers,
+    package=True,
     sources=[],
     define_macros=[('WITH_CUDA', None)],
     relative_to=__file__,
