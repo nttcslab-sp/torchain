@@ -1,7 +1,11 @@
 # PyTorch FFI package with Kaldi and ATen
 
 ``` console
+# with pytorch 0.4.0
+$ source /data/work49/skarita/tool/miniconda3/bin/activate torch
+# or with pytorch 0.3.1
 $ source /data/work70/skarita/exp/chime5/venv/bin/activate
+
 $ make test KALDI_ROOT=/data/work70/skarita/exp/chime5/kaldi-22fbdd
 ```
 
@@ -24,13 +28,5 @@ index 99105355a..3bcbcfc5a 100644
    cusparseHandle_t cusparse_handle_;
 ```
 
-This example shows how to structure the code to create an ffi package for
-PyTorch. It can be later distributed via pip.
-
-### Required files:
-
-* `setup.py` - setuptools file, that defines package metadata and some extension
-    options
-* `build.py` - cffi build file. Defines the extensions and builds
-    them if executed.
+this diff will be not required in the future
 
