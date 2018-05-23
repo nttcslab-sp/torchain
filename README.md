@@ -34,3 +34,13 @@ then you will see stdout like this
 19 ChainResults(loss=181.009201, objf=-5824.614258, l2_term=-180.041016, weight=6016.000000)
 20 ChainResults(loss=113.364677, objf=-4284.602051, l2_term=-112.380165, weight=4352.000000) 
 ```
+
+
+## TODO
+
+- implement decode script using `forward.py` and `latgen-faster-mapped`
+- use TDNN and check setup/speed/logprob/WER compatible with kaldi s5 recipe http://kishin-gitlab.cslab.kecl.ntt.co.jp/KOJIONO/pysoliton2_models/blob/master/psl2models/basic/tdnns.py
+
+## known issues
+
+- `torchain.io.open_example` return nullptr when batchsize is changed

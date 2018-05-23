@@ -21,9 +21,9 @@ def get_parser():
                          help="learning rate")
     parser.add_argument("--l2_regularize", default=1e-2, type=float,
                          help="L2 regularization for LF-MMI")
-    parser.add_argument("--train_minibatch_size", default="128,64,32",
+    parser.add_argument("--train_minibatch_size", default="32",
                         help="number of minibatches")
-    parser.add_argument("--valid_minibatch_size", default="1:64",
+    parser.add_argument("--valid_minibatch_size", default="32",
                         help="number of minibatches")
     parser.add_argument("--n_epoch", default=20, type=int,
                          help="number of training epochs")
@@ -89,7 +89,7 @@ def main():
         # training
         train_result = ChainResults()
         with io.open_example(train_cmd(epoch, egs_list)) as example:
-            for (mfcc, ivec), supervision in example:
+            for i, ((mfcc, ivec), supervision) in enumerate(example):
                 x = mfcc.cuda()
                 pred = model(x)
                 loss, results = chain_loss(pred, den_graph, supervision,
@@ -99,12 +99,14 @@ def main():
                 opt.step()
                 train_result.data += results.data
                 logging.info("train loss: {}, average: {}".format(results, train_result.loss))
+                if i > 10:
+                    break
 
         # validation
         valid_result = ChainResults()
         with io.open_example(valid_cmd) as example, torch.no_grad():
-            for (mfcc, ivec), supervision in example:
-                x = Variable(mfcc).cuda()
+            for i, ((mfcc, ivec), supervision) in enumerate(example):
+                x = mfcc.cuda()
                 pred = model(x)
                 loss, results = chain_loss(pred, den_graph, supervision,
                                            l2_regularize=args.l2_regularize)
@@ -118,11 +120,11 @@ def main():
             model.cpu()
             model_dir = Path(args.model_dir)
             torch.save(model, str(model_dir / "model.pickle"))
-            torch.save(model.state_dict(), str(model_dir + "model.dict"))
+            torch.save(model.state_dict(), str(model_dir / "model.dict"))
             model.cuda()
         else:
             logging.info("reload model and half lr")
-            torch.load(model, str(model_dir / "model.pickle"))
+            model = torch.load(str(model_dir / "model.pickle"))
             model.cuda()
             for param_group in opt.param_groups:
                 param_group['lr'] /= 2

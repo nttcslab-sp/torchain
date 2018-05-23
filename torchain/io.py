@@ -20,6 +20,8 @@ class Supervision:
     def __init__(self, egs):
         assert isinstance(egs, Example)
         self.ptr = my_lib.my_lib_supervision_new(egs.ptr)
+        if self.ptr == ffi.NULL:
+            raise ValueError("null supervision ptr")
         self.n_pdf = my_lib.my_lib_supervision_num_pdf(self.ptr)
         self.n_batch = my_lib.my_lib_supervision_num_sequence(self.ptr)
         self.n_frame = my_lib.my_lib_supervision_num_frame(self.ptr)
@@ -67,7 +69,10 @@ class Example:
 
     def __iter__(self):
         while self.next():
-            supervision = self.supervision
+            try:
+                supervision = self.supervision
+            except ValueError:
+                continue
             n_batch, n_out_frame, n_pdf = supervision.shape
             inp, aux = self.inputs
             if inp is not None:

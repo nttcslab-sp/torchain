@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+set -e
+set -u
+set -o pipefail
+set -x
+
 KALDI_ROOT=/data/work70/skarita/exp/chime5/kaldi-22fbdd/
 exp_dir=$KALDI_ROOT/egs/chime5/s5/exp
 # TODO make this rspec work
@@ -11,9 +16,9 @@ model_dir="./model"
 stage=0
 
 . ./parse_options.sh || exit 1;
-
-. ./cmd.sh
 . ./path.sh
+. ./cmd.sh
+
 
 if [ -d $exp_dir/tree_sp ]; then
     echo "$exp_dir is not finished"
