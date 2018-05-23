@@ -83,7 +83,8 @@ def open_example(cmd):
     tmpdir = tempfile.mkdtemp()
     FIFO = os.path.join(tmpdir, 'myfifo.ark')
     os.mkfifo(FIFO)
-    subprocess.run(cmd + " > " + FIFO + " &", shell=True)
+    # FIXME: maybe Popen is better? (in terms of safety)
+    subprocess.run(cmd + " > " + FIFO + " &", shell=True, check=True)
     example_rs = "ark,bg:" + FIFO
     set_kaldi_device()
     example = Example(example_rs)

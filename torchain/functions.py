@@ -16,7 +16,7 @@ class ChainResults:
 
     @property
     def loss(self):
-        return -(self.data[0] / self.data[2] + self.data[1])
+        return -self.data[0] / self.data[2] #  + self.data[1])
 
 
 class _ChainLoss(Function):

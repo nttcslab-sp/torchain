@@ -94,7 +94,7 @@ def test_example():
 def test_io():
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
-    cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:" + exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/egs/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:-"
+    cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:" + exp_root + "/exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/egs/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:-"
     with io.open_example(cmd) as example:
         n_pdf = example.supervision.n_pdf
         print(n_pdf)
@@ -111,6 +111,7 @@ def test_io():
         count = 0
         for (mfcc, ivec), supervision in example:
             x = Variable(mfcc).cuda()
+            print("input:", x.shape)
             pred = model(x)
             loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01)
             opt.zero_grad()

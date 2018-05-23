@@ -1,6 +1,6 @@
 *
-*/
 
+!*/
 
 !pytest.ini
 !.gitattributes
@@ -12,8 +12,11 @@
 !*.hpp
 !*.cpp
 !*.cu
+!*.sh
 !torchain
 torchain/_ext
 !src
 !test
 !Makefile
+
+build/
