@@ -3,8 +3,8 @@ import torch
 from torch.utils.ffi import create_extension
 
 
-headers = ['src/my_lib.h', 'src/my_lib_cuda.h']
-extra_objects = ["libmy_lib.a", "libmy_lib_cuda.a"]
+headers = ['src/my_lib.h']
+extra_objects = ["libmy_lib.a"]
 extra_link_args = [
     "-lgcov",
     "-lstdc++",
