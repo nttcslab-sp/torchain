@@ -117,11 +117,9 @@ def main():
         if valid_result.loss < best_loss:
             logging.info("update the best loss and save model")
             best_loss = valid_result.loss
-            model.cpu()
             model_dir = Path(args.model_dir)
             torch.save(model, str(model_dir / "model.pickle"))
             torch.save(model.state_dict(), str(model_dir / "model.dict"))
-            model.cuda()
         else:
             logging.info("reload model and half lr")
             model = torch.load(str(model_dir / "model.pickle"))
