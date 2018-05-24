@@ -40,6 +40,12 @@ then you will see stdout like this
 
 - implement decode script using `forward.py` and `latgen-faster-mapped`
 - use TDNN and check setup/speed/logprob/WER compatible with kaldi s5 recipe http://kishin-gitlab.cslab.kecl.ntt.co.jp/KOJIONO/pysoliton2_models/blob/master/psl2models/basic/tdnns.py
+- support xent_regularization
+- support multi GPU in example/chime5/train.py
+- support to access `std::vector<Index> indexes` in `kaldi::nnet3::NnetChainSupervision` https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-chain-example.h#L48-L56
+- support to provide `n_time_width` and `n_time_stride` in example/chime5/train.py
+- decode with online i-vector (aux feat) in example/chime5/run.sh
+
 
 ## known issues
 

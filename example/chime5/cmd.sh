@@ -12,7 +12,7 @@
 
 if [[ $(hostname) == ks* ]]; then
     export train_cmd="slurm.pl --gpu 1 --config conf/slurm.conf"
-    export decode_cmd="slurm.pl"
+    export decode_cmd="slurm.pl --config conf/slurm.conf"
     echo "running with slurm.pl"
 else
     export train_cmd=run.pl

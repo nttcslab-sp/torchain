@@ -18,6 +18,9 @@ def get_parser():
                         help='dir storing pytorch model.pickle')
     parser.add_argument('--forward_ark', required=True,
                         help='dir to store logprob ark/scp')
+    # FIXME do not provide n_time_width=29 manually
+    parser.add_argument('--min_time_width', type=int, default=29,
+                        help='minumum time width of input. input will be padded if time width is smaller')
     return parser
 
 
@@ -31,6 +34,11 @@ def main():
             print(key, feat.shape)
             # feat is (time, freq) shape
             x = torch.from_numpy(feat.T).unsqueeze(0)
+            if x.shape[2] < args.min_time_width:
+                remain = args.min_time_width - x.shape[2] + 1
+                lpad = torch.zeros(1, x.shape[1], remain / 2)
+                rpad = torch.zeros(1, x.shape[1], remain / 2)
+                x = torch.cat((lpad, x, rpad), dim=2)
             y = model(x)
             kaldi_io.write_mat(f, y.numpy().T, key)
 
