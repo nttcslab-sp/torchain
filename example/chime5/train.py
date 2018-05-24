@@ -7,6 +7,8 @@ import torch
 from torchain import io
 from torchain.functions import chain_loss, ChainResults
 
+import models
+
 
 def get_parser():
     import argparse
@@ -19,11 +21,13 @@ def get_parser():
     # optimization
     parser.add_argument("--lr", default=1e-6, type=float,
                          help="learning rate")
-    parser.add_argument("--l2_regularize", default=1e-2, type=float,
+    parser.add_argument("--l2_regularize", default=0.05, type=float,
                          help="L2 regularization for LF-MMI")
-    parser.add_argument("--train_minibatch_size", default="32",
+    parser.add_argument("--xent_regularize", default=0.1, type=float,
+                         help="Cross entropy regularization for LF-MMI")
+    parser.add_argument("--train_minibatch_size", default="128",
                         help="number of minibatches")
-    parser.add_argument("--valid_minibatch_size", default="32",
+    parser.add_argument("--valid_minibatch_size", default="128",
                         help="number of minibatches")
     parser.add_argument("--n_epoch", default=20, type=int,
                          help="number of training epochs")
@@ -77,7 +81,7 @@ def main():
     den_graph = io.DenominatorGraph(str(den_fst_rs), n_pdf)
 
     # model preparation
-    model = get_model(n_pdf, n_feat, n_ivec)
+    model = models.SimpleTDNN(n_pdf, n_feat, n_ivec)
     model.cuda()
     logging.info(model)
     opt = torch.optim.SGD(model.parameters(), lr=args.lr)
@@ -90,10 +94,13 @@ def main():
         train_result = ChainResults()
         with io.open_example(train_cmd(epoch, egs_list)) as example:
             for i, ((mfcc, ivec), supervision) in enumerate(example):
-                x = mfcc.cuda()
-                pred = model(x)
+                if i > 5:
+                    break
+                lf_pred, xe_pred = model(mfcc.cuda(), ivec.cuda())
                 loss, results = chain_loss(pred, den_graph, supervision,
-                                           l2_regularize=args.l2_regularize)
+                                           l2_regularize=args.l2_regularize,
+                                           xent_regularize=args.xent_regularize,
+                                           xent_input=xe_pred, kaldi_way=False)
                 opt.zero_grad()
                 loss.backward()
                 opt.step()

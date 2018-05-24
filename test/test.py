@@ -33,7 +33,7 @@ class Model(nn.Module):
 def test_io():
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
-    cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:" + exp_root + "/exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/egs/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:-"
+    cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:/data/work49/skarita/repos/torchain/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:-"
     for use_xent in [True, False]:
         for use_kaldi_way in [True, False]:
             print("xent: ", use_xent, "kaldi: ", use_kaldi_way)

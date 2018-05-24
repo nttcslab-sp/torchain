@@ -30,6 +30,12 @@ void copy_to_mat(kaldi::CuMatrix<float>& src, THCudaTensor* dst) {
 
 
 extern "C" {
+
+    void my_lib_set_kaldi_device(THCudaTensor* t) {
+        common::set_kaldi_device(t);
+    }
+
+
     /**
        This function computes the loss and grads of LF-MMI objective
 

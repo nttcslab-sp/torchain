@@ -23,9 +23,10 @@ max_mem=50000000
 beam=15.0
 lattice_beam=8.0
 acwt=1.0
-graphdir=$exp_dir/chain_train_worn_u100k_cleaned/tree_sp/graph
+chain_dir=$exp_dir/chain_train_worn_u100k_cleaned
+graphdir=$chain_dir/tree_sp/graph
 # TODO use final.mdl
-trans_model=$exp_dir/chain_train_worn_u100k_cleaned/tdnn1a_sp/0.mdl
+trans_model=$chain_dir/tdnn1a_sp/0.mdl
 scoring_opts="--min-lmwt 4 --max-lmwt 15 --word_ins_penalty 0.0,0.5,1.0"
 
 # exp config
@@ -35,8 +36,12 @@ stage=0
 
 ln -sf $chime5_dir/utils .
 
-if [ -d $exp_dir/tree_sp ]; then
-    echo "$exp_dir is not finished"
+if [ -d $chain_dir/tdnn1a_sp/egs/cegs1.ark ]; then
+    echo "cegs*.ark not found. use local/chain/run_tdnn.sh --remove-egs false"
+fi
+
+if [ -d $trans_model ]; then
+    echo "$trans_model is not found"
     exit 1;
 fi
 
