@@ -99,8 +99,6 @@ def main():
                 opt.step()
                 train_result.data += results.data
                 logging.info("train loss: {}, average: {}".format(results, train_result.loss))
-                if i > 10:
-                    break
 
         # validation
         valid_result = ChainResults()

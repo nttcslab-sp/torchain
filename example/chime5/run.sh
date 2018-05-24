@@ -7,8 +7,10 @@ set -o pipefail
 # set -x # verbose
 
 # general config
-# KALDI_ROOT=/data/work70/skarita/exp/chime5/kaldi-22fbdd
-export KALDI_ROOT=/data/work70/skarita/exp/chime5/kaldi-22fbdd
+# NOTE: modify KALDI_ROOT in path.sh
+. ./path.sh
+. ./cmd.sh
+
 chime5_dir=$KALDI_ROOT/egs/chime5/s5
 exp_dir=$KALDI_ROOT/egs/chime5/s5/exp
 recog_set="dev_worn"
@@ -24,15 +26,12 @@ acwt=1.0
 graphdir=$exp_dir/chain_train_worn_u100k_cleaned/tree_sp/graph
 # TODO use final.mdl
 trans_model=$exp_dir/chain_train_worn_u100k_cleaned/tdnn1a_sp/0.mdl
-scoring_opts="--min-lmwt 4 --max-lmwt 15"
-
+scoring_opts="--min-lmwt 4 --max-lmwt 15 --word_ins_penalty 0.0,0.5,1.0"
 
 # exp config
 stage=0
 
 . ./parse_options.sh || exit 1;
-. ./path.sh
-. ./cmd.sh
 
 ln -sf $chime5_dir/utils .
 

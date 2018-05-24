@@ -38,8 +38,8 @@ then you will see stdout like this
 
 ## TODO
 
-- implement decode script using `forward.py` and `latgen-faster-mapped`
 - use TDNN and check setup/speed/logprob/WER compatible with kaldi s5 recipe http://kishin-gitlab.cslab.kecl.ntt.co.jp/KOJIONO/pysoliton2_models/blob/master/psl2models/basic/tdnns.py
+- display number of chunks for each epoch in example/chime5/train.py
 - support xent_regularization
 - support multi GPU in example/chime5/train.py
 - support to access `std::vector<Index> indexes` in `kaldi::nnet3::NnetChainSupervision` https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-chain-example.h#L48-L56
