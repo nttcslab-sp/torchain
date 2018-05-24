@@ -1,4 +1,3 @@
-#pragma once
 #define HAVE_CUDA 1
 
 #include <iostream>
@@ -18,6 +17,16 @@
 
 #include "common.hpp"
 #include "./chain-supervision-test.hpp"
+
+
+void copy_to_mat(kaldi::CuMatrix<float>& src, THCudaTensor* dst) {
+    THCudaTensor_resize2d(state, dst, src.NumRows(), src.NumCols());
+    auto aten = common::make_tensor(src);
+    auto src_tensor = reinterpret_cast<THCudaTensor*>(aten.unsafeGetTH(true));
+    THCudaTensor_copy(state, dst, src_tensor);
+    // auto mat = common::make_matrix(dst);
+    // src.CopyToMat(&mat);
+}
 
 
 extern "C" {
@@ -107,11 +116,16 @@ extern "C" {
         kaldi::chain::ChainTrainingOptions opts;
         opts.l2_regularize = l2_regularize;
         opts.leaky_hmm_coefficient = leaky_hmm_coefficient;
-        opts.xent_regularize = 0.0f; // xent_regularize;
+        opts.xent_regularize = xent_regularize;
         float* data = THFloatTensor_data(results);
+        kaldi::CuMatrix<BaseFloat> xent_deriv;
+        auto xent_deriv_ptr = xent_regularize != 0.0 ? &xent_deriv : nullptr;
         kaldi::chain::ComputeChainObjfAndDeriv(opts, den_graph, supervision, nnet_output,
                                                data, data+1, data+2,
-                                               &nnet_output_deriv); // , nullptr);
+                                               &nnet_output_deriv, xent_deriv_ptr);
+        if (xent_regularize != 0.0) {
+            copy_to_mat(xent_deriv, xent_output_deriv_ptr);
+        }
         return 1;
     }
 

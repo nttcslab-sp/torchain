@@ -60,34 +60,77 @@ class _ChainLoss(Function):
 
     """
     @staticmethod
-    def forward(ctx, input, results, den_graph, supervision,
-                l2_regularize, leaky_hmm_coefficient):
+    def forward(ctx, input, xent_input,
+                results, den_graph, supervision,
+                l2_regularize, leaky_hmm_coefficient, xent_regularize=0.0,
+                kaldi_way=False):
         assert input.is_cuda, "Only CUDA implementation is available"
         if isinstance(supervision, io.Supervision):
             supervision = supervision.ptr
         if isinstance(den_graph, io.DenominatorGraph):
             den_graph = den_graph.ptr
+
+        # prepare grad tensors
         mmi_grad = input.new(*input.shape)
-        xent_grad = ffi.NULL # input.new()
+        use_xent = xent_input is not None and xent_regularize != 0.0
+        if use_xent:
+            xent_grad = xent_input.new(*xent_input.shape)
+        else:
+            xent_grad = ffi.NULL # input.new()
+
+        # forward in kaldi
         my_lib.my_lib_ComputeChainObjfAndDeriv(
             den_graph, supervision, input,
             results.data,
             mmi_grad, xent_grad,
-            l2_regularize, leaky_hmm_coefficient, 0.0)
+            l2_regularize, leaky_hmm_coefficient, xent_regularize)
+
+        # TODO: compute xent loss like kaldi?
+        # https://github.com/kaldi-asr/kaldi/blob/182f3829e1afdb7fe94eafe24ea066b328d2cd9f/src/nnet3/nnet-chain-training.cc#L320
+        # register grad for backward
         ctx.mmi_grad = mmi_grad
+        if xent_input is not None:
+            if kaldi_way:
+                # reuse LF-Free MMI output's xent grad for xent output
+                ctx.xent_grad = xent_regularize * xent_grad
+            else:
+                # recompute xent grad with actual xent output
+                my_lib.my_lib_ComputeChainObjfAndDeriv(
+                    den_graph, supervision, xent_input,
+                    results.data,
+                    mmi_grad, xent_grad,
+                    l2_regularize, leaky_hmm_coefficient, xent_regularize)
+                ctx.xent_grad = xent_regularize * xent_grad
         return input.new([results.loss])
 
     @staticmethod
     def backward(ctx, grad_output):
-        return torch.autograd.Variable(-ctx.mmi_grad), None, None, None, None, None
+        if hasattr(ctx, "xent_grad"):
+            xent_grad = torch.autograd.Variable(-ctx.xent_grad)
+        else:
+            xent_grad = None
+        return (torch.autograd.Variable(-ctx.mmi_grad), xent_grad,
+                None, None, None,
+                None, None, None,
+                None, None)
+
+
+def to2d(x):
+    if x.dim() == 3:
+        n_pdf = x.shape[1]
+        x = x.transpose(1, 2).contiguous().view(-1, n_pdf)
+    assert(x.dim() == 2)
+    return x
 
 
 def chain_loss(input, den_graph, supervision,
-               l2_regularize=0.0, leaky_hmm_coefficient=1e-5):
-    if input.dim() == 3:
-        n_pdf = input.shape[1]
-        input = input.transpose(1, 2).contiguous().view(-1, n_pdf)
+               l2_regularize=0.0, leaky_hmm_coefficient=1e-5,
+               xent_regularize=0.0, xent_input=None, kaldi_way=False):
+    input = to2d(input)
+    if xent_input is not None:
+        xent_input = to2d(xent_input)
+
     results = ChainResults()
-    loss = _ChainLoss.apply(input, results, den_graph, supervision,
-                            l2_regularize, leaky_hmm_coefficient)
+    loss = _ChainLoss.apply(input, xent_input, results, den_graph, supervision,
+                            l2_regularize, leaky_hmm_coefficient, xent_regularize, kaldi_way)
     return loss, results

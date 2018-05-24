@@ -175,7 +175,7 @@ void TestSupervisionAppend(const TransitionModel &trans_model,
     tot_frames_in += input[i]->num_sequences *
         input[i]->frames_per_sequence;
   }
-  for (int32 i = 0; i < output.size(); i++) {
+  for (size_t i = 0; i < output.size(); i++) {
     tot_sequences_out += output[i].num_sequences;
     tot_frames_out += output[i].num_sequences *
         output[i].frames_per_sequence;
