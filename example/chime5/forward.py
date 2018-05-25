@@ -3,8 +3,8 @@ from pathlib import Path
 import torch
 import numpy
 
+import kaldiio
 import kaldi_io
-
 
 def get_parser():
     import argparse
@@ -12,8 +12,8 @@ def get_parser():
     # IO configuration
     parser.add_argument('--input_rs', required=True,
                         help='input feat (e.g., MFCC, FBANK) rspecifier in decoding')
-    parser.add_argument('--aux_rs', required=False,
-                        help='aux feat (e.g., i-vector) rspecifier in decoding')
+    parser.add_argument('--aux_scp', required=False,
+                        help='aux feat (e.g., i-vector) scp in decoding')
     parser.add_argument('--model_dir', required=True,
                         help='dir storing pytorch model.pickle')
     parser.add_argument('--forward_ark', required=True,
@@ -25,13 +25,14 @@ def get_parser():
 
 
 def main():
-    assert args.aux_rs is not None, "not supported"
     model_dir = Path(args.model_dir)
     forward_dir = model_dir / "forward"
+    aux_scp = kaldiio.load_scp(args.aux_scp)
     model = torch.load(model_dir / "model.pickle", map_location="cpu")
     with torch.no_grad(), open(args.forward_ark, "wb") as f:
         for key, feat in kaldi_io.read_mat_ark(args.input_rs):
-            print(key, feat.shape)
+            aux = torch.from_numpy(aux_scp[key])
+            print(key, feat.shape, aux.shape)
             # feat is (time, freq) shape
             x = torch.from_numpy(feat.T).unsqueeze(0)
             if x.shape[2] < args.min_time_width:
@@ -39,7 +40,12 @@ def main():
                 lpad = torch.zeros(1, x.shape[1], remain / 2)
                 rpad = torch.zeros(1, x.shape[1], remain / 2)
                 x = torch.cat((lpad, x, rpad), dim=2)
-            y = model(x)
+
+            n_aux = aux.shape[0]
+            # take center ivector frame
+            aux = aux[n_aux//2].unsqueeze(0)
+            # forward
+            y, _ = model(x, aux)
             kaldi_io.write_mat(f, y.numpy().T, key)
 
 args = get_parser().parse_args()

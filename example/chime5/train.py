@@ -1,3 +1,4 @@
+import math
 import logging
 from pathlib import Path
 
@@ -23,13 +24,13 @@ def get_parser():
                          help="learning rate")
     parser.add_argument("--l2_regularize", default=0.05, type=float,
                          help="L2 regularization for LF-MMI")
-    parser.add_argument("--xent_regularize", default=0.1, type=float,
+    parser.add_argument("--xent_regularize", default=0.0, type=float,
                          help="Cross entropy regularization for LF-MMI")
-    parser.add_argument("--train_minibatch_size", default="128",
+    parser.add_argument("--train_minibatch_size", default="256",
                         help="number of minibatches")
     parser.add_argument("--valid_minibatch_size", default="128",
                         help="number of minibatches")
-    parser.add_argument("--n_epoch", default=20, type=int,
+    parser.add_argument("--n_epoch", default=200, type=int,
                          help="number of training epochs")
     # misc
     parser.add_argument('--seed', default=777, type=int,
@@ -57,7 +58,7 @@ def train_cmd(i, egs_list):
 
 
 def main():
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
     logging.info(args)
     # init libraries
     torch.manual_seed(args.seed)
@@ -94,29 +95,40 @@ def main():
         train_result = ChainResults()
         with io.open_example(train_cmd(epoch, egs_list)) as example:
             for i, ((mfcc, ivec), supervision) in enumerate(example):
-                if i > 5:
-                    break
-                lf_pred, xe_pred = model(mfcc.cuda(), ivec.cuda())
-                loss, results = chain_loss(pred, den_graph, supervision,
+                n_batch, n_freq, n_time_in = mfcc.shape
+                # FIXME do not hardcode here
+                n_time_out = math.floor((n_time_in - (29 - 1) -1) / 3 + 1)
+                lf_mmi_pred, xe_pred = model(mfcc.cuda(), ivec.cuda())
+                ref_shape = (n_batch, n_pdf, n_time_out)
+                assert lf_mmi_pred.shape == ref_shape, "{} != {}".format(lf_mmi_pred.shape, ref_shape)
+                loss, results = chain_loss(lf_mmi_pred, den_graph, supervision,
                                            l2_regularize=args.l2_regularize,
                                            xent_regularize=args.xent_regularize,
-                                           xent_input=xe_pred, kaldi_way=False)
+                                           xent_input=None, kaldi_way=True)
                 opt.zero_grad()
                 loss.backward()
                 opt.step()
                 train_result.data += results.data
                 logging.info("train loss: {}, average: {}".format(results, train_result.loss))
+            logging.info("summary train loss average: {}".format(train_result.loss))
 
         # validation
         valid_result = ChainResults()
         with io.open_example(valid_cmd) as example, torch.no_grad():
             for i, ((mfcc, ivec), supervision) in enumerate(example):
-                x = mfcc.cuda()
-                pred = model(x)
-                loss, results = chain_loss(pred, den_graph, supervision,
-                                           l2_regularize=args.l2_regularize)
+                n_batch, n_freq, n_time_in = mfcc.shape
+                # FIXME do not hardcode here
+                n_time_out = math.floor((n_time_in - (29 - 1) -1) / 3 + 1)
+                lf_mmi_pred, xe_pred = model(mfcc.cuda(), ivec.cuda())
+                ref_shape = (n_batch, n_pdf, n_time_out)
+                assert lf_mmi_pred.shape == ref_shape, "{} != {}".format(lf_mmi_pred.shape, ref_shape)
+                loss, results = chain_loss(lf_mmi_pred, den_graph, supervision,
+                                           l2_regularize=args.l2_regularize,
+                                           xent_regularize=args.xent_regularize,
+                                           xent_input=xe_pred, kaldi_way=False)
                 valid_result.data += results.data
                 logging.info("valid loss: {}, average: {}".format(results, valid_result.loss))
+            logging.info("summary valid loss average: {}".format(valid_result.loss))
 
         # adaptive operations
         if valid_result.loss < best_loss:

@@ -57,6 +57,7 @@ fi
 
 nj=20
 
+
 # TODO merge stage 2 and 3 with pipe and remove forward/dev_worn_split.JOB.ark
 if [ $stage -le 2 ]; then
     echo "=== stage 2: calc acoustic log-likelihood ==="
@@ -68,7 +69,7 @@ if [ $stage -le 2 ]; then
         ${decode_cmd} \
             JOB=1:$nj $model_dir/log/forward.JOB.log \
             python forward.py \
-            --aux_rs scp:$aux_dir/ivector_online.scp \
+            --aux_scp $aux_dir/ivector_online.scp \
             --input_rs "ark,s,cs:apply-cmvn --norm-means=false --norm-vars=false --utt2spk=ark:${input_dir}/JOB/utt2spk scp:${input_dir}/JOB/cmvn.scp scp:${input_dir}/JOB/feats.scp ark:- |" \
             --model_dir $model_dir \
             --forward_ark $model_dir/forward/${label}_split.JOB.ark

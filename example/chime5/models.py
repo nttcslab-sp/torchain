@@ -14,27 +14,31 @@ def conv_relu_bn(n_in, n_out, kernel_size=3, stride=1, padding=0, dilation=1):
 
 class SimpleTDNN(nn.Module):
     def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512):
+        """
+        total kernel width should be 29 and stride 3
+        """
         super().__init__()
-        self.input_layer = conv_relu_bn(n_freq, n_unit, 3, n_stride)
+        # T/3
+        self.input_layer = conv_relu_bn(n_freq, n_unit, 5, stride=3)
         self.aux_layer = nn.Sequential(
             nn.Linear(n_aux, n_unit),
             nn.ReLU()
         )
         self.common = nn.Sequential(
-            # (B, 40, 29)
-            conv_relu_bn(n_freq, n_unit, 3, n_stride),
             conv_relu_bn(n_unit, n_unit, 1),
-            # (B, U, 9)
+            # 3*2=6
             conv_relu_bn(n_unit, n_unit, 3),
             conv_relu_bn(n_unit, n_unit, 1),
-            # (B, U, 7)
+            # 3*(2+2)=12
             conv_relu_bn(n_unit, n_unit, 3),
             conv_relu_bn(n_unit, n_unit, 1),
-            # (B, U, 5)
-            conv_relu_bn(n_unit, n_unit, 3),
+            # 3*(2+2+3*2)=30
+            conv_relu_bn(n_unit, n_unit, 3, 1, 0, 2),
+            # conv_relu_bn(n_unit, n_unit, 3, 1, 0, 2),
+            # conv_relu_bn(n_unit, n_unit, 3, 1, 0, 2),
             conv_relu_bn(n_unit, n_unit, 1),
-            # (B, U, 3)
-            conv_relu_bn(n_unit, n_unit, 3),
+            conv_relu_bn(n_unit, n_unit, 1),
+            conv_relu_bn(n_unit, n_unit, 1),
             conv_relu_bn(n_unit, n_unit, 1),
             # (B, U, 1)
         )
