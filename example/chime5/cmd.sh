@@ -11,7 +11,7 @@
 # or search for the string 'default_config' in utils/queue.pl or utils/slurm.pl.
 
 if [[ $(hostname) == ks* ]]; then
-    export train_cmd="slurm.pl --gpu 1 --config conf/slurm.conf"
+    export train_cmd="slurm.pl --config conf/slurm.conf"
     export decode_cmd="slurm.pl --config conf/slurm.conf"
     echo "running with slurm.pl"
 else

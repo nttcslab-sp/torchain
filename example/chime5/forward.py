@@ -19,7 +19,7 @@ def get_parser():
     parser.add_argument('--forward_ark', required=True,
                         help='dir to store logprob ark/scp')
     # FIXME do not provide n_time_width=29 manually
-    parser.add_argument('--min_time_width', type=int, default=29,
+    parser.add_argument('--min_time_width', type=int, default=33,
                         help='minumum time width of input. input will be padded if time width is smaller')
     return parser
 

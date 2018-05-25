@@ -89,7 +89,7 @@ class _ChainLoss(Function):
         # https://github.com/kaldi-asr/kaldi/blob/182f3829e1afdb7fe94eafe24ea066b328d2cd9f/src/nnet3/nnet-chain-training.cc#L320
         # register grad for backward
         ctx.mmi_grad = mmi_grad
-        if xent_input is not None:
+        if use_xent:
             if kaldi_way:
                 # reuse LF-Free MMI output's xent grad for xent output
                 ctx.xent_grad = xent_regularize * xent_grad
