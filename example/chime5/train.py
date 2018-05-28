@@ -6,9 +6,11 @@ import os
 
 import numpy
 import torch
+import kaldiio
 
 from torchain import io
 from torchain.functions import chain_loss, ChainResults
+
 
 import models
 
@@ -21,13 +23,16 @@ def get_parser():
                         help='kaldi s5/exp dir that must be finished before')
     parser.add_argument('--model_dir', required=True,
                         help='model dir to store pytorch params and pickle')
+    parser.add_argument("--lda_mat", help="lda mat file path (optional)")
     # optimization
-    parser.add_argument("--lr", default=1e-3, type=float,
+    parser.add_argument("--lr", default=1e-2, type=float,
                          help="learning rate")
+    parser.add_argument("--weight_decay", default=5e-2, type=float,
+                         help="weight decay")
     parser.add_argument("--l2_regularize", default=5e-5, type=float,
                          help="L2 regularization for LF-MMI")
     parser.add_argument("--leaky_hmm_coefficient", default=0.1, type=float,
-                         help="keaky HMM coefficient for LF-MMI")
+                         help="leaky HMM coefficient for LF-MMI")
     parser.add_argument("--xent_regularize", default=0.1, type=float,
                          help="Cross entropy regularization for LF-MMI")
     parser.add_argument("--train_minibatch_size", default="256",
@@ -53,9 +58,9 @@ def train_cmd(egs_path):
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
-    logging.info("CUDA_VISIBLE_DEVICES=" + os.environ.get("CUDA_VISIBLE_DEVICES"))
-    logging.info("HOST=" + os.environ.get("HOST"))
-    logging.info("SLURM_JOB_ID=" + os.environ.get("SLURM_JOB_ID"))
+    logging.info("CUDA_VISIBLE_DEVICES=" + os.environ.get("CUDA_VISIBLE_DEVICES", ""))
+    logging.info("HOST=" + os.environ.get("HOST", ""))
+    logging.info("SLURM_JOB_ID=" + os.environ.get("SLURM_JOB_ID", ""))
     logging.info(args)
     # init libraries
     torch.manual_seed(args.seed)
@@ -86,12 +91,21 @@ def main():
     den_fst_rs = chain_dir / "tdnn1a_sp/den.fst"
     den_graph = io.DenominatorGraph(str(den_fst_rs), n_pdf)
 
+    # load LDA matrix
+    if args.lda_mat is not None:
+        lda_mat = kaldiio.load_mat(args.lda_mat)
+        lda_mat = torch.from_numpy(lda_mat)
+    else:
+        lda_mat = None
+
     # model preparation
-    model = models.SimpleTDNN(n_pdf, n_feat, n_ivec)
+    model = models.SimpleTDNN(n_pdf, n_feat, n_ivec, lda_mat=lda_mat)
     model = torch.nn.DataParallel(model)
     model.cuda()
     logging.info(model)
-    opt = torch.optim.SGD(model.parameters(), lr=args.lr)
+    params = iter(p for p in model.parameters() if p.requires_grad)
+    # opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+    opt = torch.optim.Adadelta(params, weight_decay=args.weight_decay)
     best_loss = float("inf")
 
     def forward(data):
@@ -103,10 +117,10 @@ def main():
         ref_shape = (n_batch, n_pdf, n_time_out)
         assert lf_mmi_pred.shape == ref_shape, "{} != {}".format(lf_mmi_pred.shape, ref_shape)
         return chain_loss(lf_mmi_pred, den_graph, supervision,
-                        l2_regularize=args.l2_regularize,
+                          l2_regularize=args.l2_regularize,
                           leaky_hmm_coefficient=args.leaky_hmm_coefficient,
                           xent_regularize=args.xent_regularize,
-                          xent_input=xe_pred, kaldi_way=True)
+                          xent_input=lf_mmi_pred, kaldi_way=True)
 
     # main loop
     for epoch in range(args.n_epoch):

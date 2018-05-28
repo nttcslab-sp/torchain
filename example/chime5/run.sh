@@ -28,7 +28,7 @@ graphdir=$chain_dir/tree_sp/graph
 # TODO use final.mdl
 trans_model=$chain_dir/tdnn1a_sp/final.mdl
 scoring_opts="--min-lmwt 4 --max-lmwt 15 --word_ins_penalty 0.0,0.5,1.0"
-
+lda_mat=$chain_dir/tdnn1a_sp/lda.mat
 # exp config
 stage=0
 ngpu=1
@@ -52,7 +52,7 @@ if [ $stage -le 1 ]; then
     echo "=== stage 1: acoustic model training ==="
     ${train_cmd} --gpu $ngpu $model_dir/log/train.log python train.py \
            --exp_dir $exp_dir \
-           --model_dir $model_dir
+           --model_dir $model_dir --lda_mat $lda_mat
 fi
 
 nj=20
