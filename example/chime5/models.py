@@ -7,7 +7,7 @@ def conv_relu_bn(n_in, n_out, kernel_size=3, stride=1, padding=0, dilation=1):
     """
     return nn.Sequential(
         nn.Conv1d(n_in, n_out, kernel_size, stride, padding, dilation),
-        nn.BatchNorm1d(n_out),
+        nn.BatchNorm1d(n_out, eps=1e-3),
         nn.ReLU()
     )
 
@@ -46,13 +46,11 @@ class SimpleTDNN(nn.Module):
         )
         # T=47 (169 - 29) / 3
         self.lf_mmi_head = nn.Sequential(
-            nn.Conv1d(n_unit, n_bottleneck, 3, 3),
-            nn.ReLU(),
+            conv_relu_bn(n_unit, n_bottleneck, 3, 3),
             nn.Conv1d(n_bottleneck, n_pdf, 1)
         )
         self.xent_head = nn.Sequential(
-            nn.Conv1d(n_unit, n_bottleneck, 3, 3),
-            nn.ReLU(),
+            conv_relu_bn(n_unit, n_bottleneck, 3, 3),
             nn.Conv1d(n_bottleneck, n_pdf, 1)
         )
 

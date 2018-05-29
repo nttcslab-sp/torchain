@@ -1,3 +1,5 @@
+import os
+import logging
 from pathlib import Path
 
 import torch
@@ -25,14 +27,20 @@ def get_parser():
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
+    logging.info("CUDA_VISIBLE_DEVICES=" + os.environ.get("CUDA_VISIBLE_DEVICES", ""))
+    logging.info("HOST=" + os.environ.get("HOST", ""))
+    logging.info("SLURM_JOB_ID=" + os.environ.get("SLURM_JOB_ID", ""))
+
     model_dir = Path(args.model_dir)
     forward_dir = model_dir / "forward"
     aux_scp = kaldiio.load_scp(args.aux_scp)
     model = torch.load(model_dir / "model.pickle", map_location="cpu")
+    model.eval()
     with torch.no_grad(), open(args.forward_ark, "wb") as f:
         for key, feat in kaldi_io.read_mat_ark(args.input_rs):
             aux = torch.from_numpy(aux_scp[key])
-            print(key, feat.shape, aux.shape)
+            logging.info("input: key={} feat={} aux={}".format(key, feat.shape, aux.shape))
             # feat is (time, freq) shape
             x = torch.from_numpy(feat.T).unsqueeze(0)
             if x.shape[2] < args.min_time_width:
@@ -46,6 +54,8 @@ def main():
             aux = aux[n_aux//2].unsqueeze(0)
             # forward
             y, _ = model(x, aux)
+            y = torch.nn.functional.log_softmax(y, dim=1).squeeze(0)
+            logging.info("output: {}".format(y.shape))
             kaldi_io.write_mat(f, y.numpy().T, key)
 
 args = get_parser().parse_args()

@@ -25,8 +25,9 @@ def get_parser():
                         help='model dir to store pytorch params and pickle')
     parser.add_argument("--lda_mat", help="lda mat file path (optional)")
     # optimization
-    parser.add_argument("--lr", default=1e-2, type=float,
-                         help="learning rate")
+    parser.add_argument("--lr", default=1e-3, type=float,
+                        help="learning rate")
+    parser.add_argument("--optim", default="SGD", help="optimizer name")
     parser.add_argument("--weight_decay", default=5e-2, type=float,
                          help="weight decay")
     parser.add_argument("--l2_regularize", default=5e-5, type=float,
@@ -41,6 +42,8 @@ def get_parser():
                         help="number of minibatches")
     parser.add_argument("--n_epoch", default=10, type=int,
                          help="number of training epochs")
+    parser.add_argument("--accum_grad", default=1, type=int,
+                         help="number of gradient accumulation before update")
     # parser.add_argument("--max_loss", default=10.0, type=float,
     #                      help="max upperbound loss value to update")
 
@@ -104,8 +107,8 @@ def main():
     model.cuda()
     logging.info(model)
     params = iter(p for p in model.parameters() if p.requires_grad)
-    # opt = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-    opt = torch.optim.Adadelta(params, weight_decay=args.weight_decay)
+    opt_class = getattr(torch.optim, args.optim)
+    opt = opt_class(params, lr=args.lr, weight_decay=args.weight_decay)
     best_loss = float("inf")
 
     def forward(data):
@@ -126,20 +129,23 @@ def main():
     for epoch in range(args.n_epoch):
         logging.info("epoch: {}".format(epoch))
         # training
+        model.train()
         train_result = ChainResults()
         numpy.random.shuffle(egs_list)
         for egs in egs_list:
             with io.open_example(train_cmd(egs)) as example:
                 for i, data in enumerate(example):
                     loss, results = forward(data)
-                    opt.zero_grad()
                     loss.backward()
-                    opt.step()
+                    if i % args.accum_grad:
+                        opt.step()
+                        opt.zero_grad()
                     train_result.data += results.data
                     logging.info("train loss: {}, average: {}".format(results, train_result.loss))
         logging.info("summary train loss average: {}".format(train_result.loss))
 
         # validation
+        model.eval()
         valid_result = ChainResults()
         with io.open_example(valid_cmd) as example, torch.no_grad():
             for i, data in enumerate(example):

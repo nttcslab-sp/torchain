@@ -11,11 +11,23 @@ set -o pipefail
 . ./path.sh
 . ./cmd.sh
 
+
+# path config
 chime5_dir=$KALDI_ROOT/egs/chime5/s5
 exp_dir=$KALDI_ROOT/egs/chime5/s5/exp
 recog_set="dev_worn"
-model_dir="./model"
+chain_dir=$exp_dir/chain_train_worn_u100k_cleaned
 
+
+# training config
+optim=Adam
+lr=1e-3
+xent_regularize=0.0
+model_dir=
+ngpu=1
+weight_decay=5e-5
+batchsize=256
+accum_grad=1
 # decoding config
 min_active=200
 max_active=700
@@ -23,15 +35,15 @@ max_mem=50000000
 beam=15.0
 lattice_beam=8.0
 acwt=1.0
-chain_dir=$exp_dir/chain_train_worn_u100k_cleaned
 graphdir=$chain_dir/tree_sp/graph
-# TODO use final.mdl
 trans_model=$chain_dir/tdnn1a_sp/final.mdl
 scoring_opts="--min-lmwt 4 --max-lmwt 15 --word_ins_penalty 0.0,0.5,1.0"
 lda_mat=$chain_dir/tdnn1a_sp/lda.mat
-# exp config
+
+# misc config
 stage=0
-ngpu=1
+
+
 . ./parse_options.sh || exit 1;
 
 ln -sf $chime5_dir/utils .
@@ -45,6 +57,18 @@ if [ -d $trans_model ]; then
     exit 1;
 fi
 
+if [ -z $lda_mat ]; then
+    use_lda=""
+    lda_opt=""
+else
+    use_lda="_lda"
+    lda_opt="--lda_mat ${lda_mat}"
+fi
+
+if [ -z $model_dir ]; then
+    model_dir=exp/pytorch_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_ag${accum_grad}_xent${xent_regularize}${use_lda}
+fi
+
 mkdir -p $model_dir
 
 # TODO support multi GPU
@@ -52,7 +76,8 @@ if [ $stage -le 1 ]; then
     echo "=== stage 1: acoustic model training ==="
     ${train_cmd} --gpu $ngpu $model_dir/log/train.log python train.py \
            --exp_dir $exp_dir \
-           --model_dir $model_dir --lda_mat $lda_mat
+           --model_dir $model_dir \
+           --optim $optim --xent_regularize $xent_regularize --lr ${lr} --weight_decay ${weight_decay} --train_minibatch_size ${batchsize} --accum_grad ${accum_grad} ${lda_opt}
 fi
 
 nj=20
@@ -65,13 +90,14 @@ if [ $stage -le 2 ]; then
     for label in $recog_set; do
         aux_dir=$exp_dir/nnet3_train_worn_u100k_cleaned/ivectors_${label}_hires
         input_dir=$exp_dir/../data/${recog_set}_hires/split$nj
+
         ${decode_cmd} \
             JOB=1:$nj $model_dir/log/forward.JOB.log \
             python forward.py \
             --aux_scp $aux_dir/ivector_online.scp \
             --input_rs "ark,s,cs:apply-cmvn --norm-means=false --norm-vars=false --utt2spk=ark:${input_dir}/JOB/utt2spk scp:${input_dir}/JOB/cmvn.scp scp:${input_dir}/JOB/feats.scp ark:- |" \
             --model_dir $model_dir \
-            --forward_ark $model_dir/forward/${label}_split.JOB.ark
+            --forward_ark $model_dir/forward/${label}_split.JOB.ark || exit 1;
     done
 fi
 
