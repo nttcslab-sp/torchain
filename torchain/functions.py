@@ -116,9 +116,11 @@ class _ChainLoss(Function):
 
 
 def to2d(x):
-    if x.dim() == 3:
+    if x.dim() == 3:  # (B, C, T)
+        # TODO double-check this
         n_pdf = x.shape[1]
-        x = x.transpose(1, 2).contiguous().view(-1, n_pdf)
+        # x = x.transpose(1, 2).contiguous().view(-1, n_pdf)  # (B * T, C)
+        x = x.permute(2, 0, 1).contiguous().view(-1, n_pdf)  # (T * B, C)
     assert(x.dim() == 2)
     return x
 

@@ -13,7 +13,7 @@ def conv_relu_bn(n_in, n_out, kernel_size=3, stride=1, padding=0, dilation=1):
 
 
 class SimpleTDNN(nn.Module):
-    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=1024, n_bottleneck=320, lda_mat=None):
+    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512, n_bottleneck=320, lda_mat=None):
         """
         total kernel width should be 29 and stride 3
         """
@@ -61,12 +61,12 @@ class SimpleTDNN(nn.Module):
     def init_weight(self):
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
-                # nn.init.normal_(m.weight, std=1e-5)
+                nn.init.normal_(m.weight, std=1e-4)
                 # nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
-                # nn.init.constant_(m.bias, 0)
+                nn.init.constant_(m.bias, 0)
                 # kaldi way
-                nn.init.normal_(m.weight, std=1.0 / (m.weight.shape[1] ** 0.5))
-                nn.init.normal_(m.bias, std=1.0)
+                # nn.init.normal_(m.weight, std=1.0 / (m.weight.shape[1] ** 0.5))
+                # nn.init.normal_(m.bias, std=1.0)
 
     def kaldi_like_parameters(self):
         ng_params = [

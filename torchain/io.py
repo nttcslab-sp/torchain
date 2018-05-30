@@ -74,17 +74,20 @@ class Example:
         else:
             raise ValueError("unsupported number of inputs (up to 2): %d" % n)
 
+    def value(self):
+        supervision = self.supervision
+        n_batch, n_out_frame, n_pdf = supervision.shape
+        inp, aux = self.inputs
+        if inp is not None:
+            inp = inp.view(n_batch, -1, inp.shape[1]).transpose(1, 2)
+        return (inp, aux), supervision
+
     def __iter__(self):
         while self.next():
             try:
-                supervision = self.supervision
+                yield self.value()
             except ValueError:
                 continue
-            n_batch, n_out_frame, n_pdf = supervision.shape
-            inp, aux = self.inputs
-            if inp is not None:
-                inp = inp.view(n_batch, -1, inp.shape[1]).transpose(1, 2)
-            yield (inp, aux), supervision
 
 
 @contextmanager

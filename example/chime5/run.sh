@@ -20,7 +20,7 @@ chain_dir=$exp_dir/chain_train_worn_u100k_cleaned
 
 
 # training config
-optim=Adam
+optim=SGD
 lr=1e-3
 xent_regularize=0.0
 model_dir=

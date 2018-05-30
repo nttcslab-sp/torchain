@@ -38,6 +38,11 @@ def test_io():
         idx = example.indexes
         print(idx.shape)
         print(idx[0])
+        (mfcc, ivec), sup = example.value()
+        print(mfcc.shape)
+        sup = example.supervision
+        assert sup.n_frame == idx.shape[1]
+
     for use_xent in [True]:
         for use_kaldi_way in [True]:
             print("xent: ", use_xent, "kaldi: ", use_kaldi_way)

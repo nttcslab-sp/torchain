@@ -112,7 +112,7 @@ def main():
     opt = opt_class(params, lr=args.lr, weight_decay=args.weight_decay)
     best_loss = float("inf")
 
-    def forward(data):
+    def forward(data, idx):
         (mfcc, ivec), supervision = data
         n_batch, n_freq, n_time_in = mfcc.shape
         # FIXME do not hardcode here
@@ -136,11 +136,11 @@ def main():
         for egs in egs_list:
             with io.open_example(train_cmd(egs)) as example:
                 for i, data in enumerate(example):
-                    loss, results = forward(data)
+                    idx = example.indexes
+                    loss, results = forward(data, idx)
+                    opt.zero_grad()
                     loss.backward()
-                    if i % args.accum_grad:
-                        opt.step()
-                        opt.zero_grad()
+                    opt.step()
                     train_result.data += results.data
                     logging.info("train loss: {}, average: {}".format(results, train_result.loss))
         logging.info("summary train loss average: {}".format(train_result.loss))
@@ -150,7 +150,8 @@ def main():
         valid_result = ChainResults()
         with io.open_example(valid_cmd) as example, torch.no_grad():
             for i, data in enumerate(example):
-                loss, results = forward(data)
+                idx = example.indexes
+                loss, results = forward(data, idx)
                 valid_result.data += results.data
                 logging.info("valid loss: {}, average: {}".format(results, valid_result.loss))
         logging.info("summary valid loss average: {}".format(valid_result.loss))
