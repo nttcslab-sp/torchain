@@ -11,7 +11,7 @@ this_file = os.path.dirname(__file__)
 
 setup(
     name="torchain",
-    version="0.4",
+    version="0.5",
     description="Kaldi's chain binding for PyTorch",
     url="http://kishin-gitlab.cslab.kecl.ntt.co.jp/karita/torchain",
     author="Shigeki Karita",
