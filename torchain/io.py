@@ -56,6 +56,13 @@ class Example:
         return Supervision(self)
 
     @property
+    def indexes(self):
+        idx = torch.LongTensor()
+        err = my_lib.my_lib_example_reader_indexes(self.ptr, idx);
+        assert err != 0
+        return idx
+
+    @property
     def inputs(self):
         inp = torch.FloatTensor()
         aux = torch.FloatTensor()

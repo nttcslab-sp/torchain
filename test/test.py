@@ -34,8 +34,12 @@ def test_io():
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
     cmd = "nnet3-chain-copy-egs --frame-shift=1  ark:/data/work49/skarita/repos/torchain/cegs.1.ark ark:- | nnet3-chain-shuffle-egs --buffer-size=5000 --srand=0 ark:- ark:- | nnet3-chain-merge-egs --minibatch-size=128,64,32 ark:- ark:-"
-    for use_xent in [True, False]:
-        for use_kaldi_way in [True, False]:
+    with io.open_example(cmd) as example:
+        idx = example.indexes
+        print(idx.shape)
+        print(idx[0])
+    for use_xent in [True]:
+        for use_kaldi_way in [True]:
             print("xent: ", use_xent, "kaldi: ", use_kaldi_way)
             with io.open_example(cmd) as example:
                 n_pdf = example.supervision.n_pdf
@@ -65,6 +69,6 @@ def test_io():
 
 
 if __name__ == "__main__":
-    test_chain()
-    test_io()
+    # test_chain()
+    idx = test_io()
 

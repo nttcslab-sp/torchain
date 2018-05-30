@@ -1,17 +1,22 @@
-// chain example
+/// chain example is a minibatch of utterance chunks and targets
 void* my_lib_example_reader_new(const char* examples_rspecifier);
 int my_lib_example_reader_next(void* reader_ptr);
 void my_lib_example_reader_free(void* reader_ptr);
 int my_lib_example_feats(void* reader_ptr, THFloatTensor* input, THFloatTensor* aux);
+
+/// chain supervision is target data in example
 void* my_lib_supervision_new(void* reader_ptr);
 void my_lib_supervision_free(void* supervision_ptr);
 int my_lib_supervision_num_pdf(void* supervision_ptr);
 int my_lib_supervision_num_sequence(void* supervision_ptr);
 int my_lib_supervision_num_frame(void* supervision_ptr);
+int my_lib_example_reader_indexes(void* reader_ptr, THLongTensor* index_tensor);
+
+/// chain denominator holds lattices per utterances in a dataset
 void* my_lib_denominator_graph_new(const char* rxfilename, int num_pdf);
 void my_lib_denominator_graph_free(void* den_graph_ptr);
 
-
+/// chain loss function
 int my_lib_ComputeChainObjfAndDeriv(
     // inputs
     void* den_graph_ptr, void* supervision_ptr, THCudaTensor* nnet_output_ptr,
@@ -23,5 +28,8 @@ int my_lib_ComputeChainObjfAndDeriv(
     // hyper params
     float l2_regularize, float leaky_hmm_coefficient, float xent_regularize);
 
+/// execute C++ native test function in kaldi
 int my_lib_test_chain(THCudaTensor* out, THCudaTensor* grad);
+
+/// set kaldi CUDA device/handlers equal to torch cuda tensor
 void my_lib_set_kaldi_device(THCudaTensor* t);

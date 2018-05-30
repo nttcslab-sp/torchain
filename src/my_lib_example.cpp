@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "common.hpp"
 #include <THC/THC.h>
 
@@ -90,6 +92,38 @@ extern "C" {
     int my_lib_supervision_num_frame(void* supervision_ptr) {
         auto supervision = static_cast<Supervision*>(supervision_ptr);
         return supervision->frames_per_sequence;
+    }
+
+    int my_lib_example_reader_indexes(void* reader_ptr, THLongTensor* index_tensor) {
+        /// The indexes that the output corresponds to.  The size of this vector will
+        /// be equal to supervision.num_sequences * supervision.frames_per_sequence.
+        /// Be careful about the order of these indexes-- it is a little confusing.
+        /// The indexes in the 'index' vector are ordered as: (frame 0 of each sequence);
+        /// (frame 1 of each sequence); and so on.  But in the 'supervision' object,
+        /// the FST contains (sequence 0; sequence 1; ...).  So reordering is needed
+        /// when doing the numerator computation.
+        /// We order 'indexes' in this way for efficiency in the denominator
+        /// computation (it helps memory locality), as well as to avoid the need for
+        /// the nnet to reorder things internally to match the requested output
+        /// (for layers inside the neural net, the ordering is (frame 0; frame 1 ...)
+        /// as this corresponds to the order you get when you sort a vector of Index).
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
+        if (reader->Done()) return 0; // fail
+        auto&& egs = reader->Value();
+
+        // TODO support multiple outputs
+        const auto& chain_supervision = egs.outputs[0];
+        const auto& indexes = chain_supervision.indexes;
+        const auto& supervision = chain_supervision.supervision;
+        THLongTensor_resize2d(index_tensor, supervision.frames_per_sequence, supervision.num_sequences);
+        auto index_data = THLongTensor_data(index_tensor);
+        for (const auto& idx : indexes) {
+            // printf("{n:%d, t:%d, x:%d}\n", idx.n, idx.t, idx.x);
+            *index_data = idx.t;
+            ++index_data;
+        }
+        THLongTensor_transpose(index_tensor, nullptr, 0, 1); // (B, T)
+        return egs.inputs.size(); // success
     }
 
     void* my_lib_denominator_graph_new(const char* rxfilename, int num_pdfs) {

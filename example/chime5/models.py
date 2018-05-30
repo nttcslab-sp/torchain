@@ -13,7 +13,7 @@ def conv_relu_bn(n_in, n_out, kernel_size=3, stride=1, padding=0, dilation=1):
 
 
 class SimpleTDNN(nn.Module):
-    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512, n_bottleneck=320, lda_mat=None):
+    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=1024, n_bottleneck=320, lda_mat=None):
         """
         total kernel width should be 29 and stride 3
         """

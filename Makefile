@@ -79,6 +79,7 @@ all: release
 test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/lib:$(FST_ROOT)/lib:$(LD_LIBRARY_PATH)
 test: debug
 	# cd  $(KALDI_ROOT)/egs/chime5/s5/ && source ./path.sh && cd - && source $(VENV_ROOT) &&
+	ln -sf $(PWD)/torchain/_ext/my_lib/torchain._ext.my_lib._my_lib.so ./torchain/_ext/my_lib/_my_lib.so
 	. $(KALDI_ROOT)/tools/config/common_path.sh && PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
 
 gdb: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(LD_LIBRARY_PATH)
@@ -107,20 +108,11 @@ clean:
 	rm -rfv html-gcov
 	rm -fv gcov.info
 
-test-gpu: debug
-	CUDA_VISIBLE_DEVICES=0,1 py.test --cov=my_lib --cov-report=term --cov-report=html test
-
-test-cpu: debug
-	CUDA_VISIBLE_DEVICES="" python build.py
-	CUDA_VISIBLE_DEVICES="" py.test --cov=my_lib --cov-report=term --cov-report=html test
 
 install: clean release
 	python setup.py install
 
-gcov-cpu: test-cpu
+: test
 	gcov -rbf -s src src/*.cpp
-
-gcov-gpu: test-gpu
-	gcov -rbf -s src src/*.cpp src/*.cu
 	lcov -c --no-external -d . -o gcov.info
 	genhtml -o html-gcov gcov.info --ignore-errors source
