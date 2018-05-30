@@ -61,8 +61,35 @@ class SimpleTDNN(nn.Module):
     def init_weight(self):
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
-                nn.init.normal_(m.weight, std=1e-4)
-                nn.init.constant_(m.bias, 0)
+                # nn.init.normal_(m.weight, std=1e-5)
+                # nn.init.kaiming_normal_(m.weight, nonlinearity="relu")
+                # nn.init.constant_(m.bias, 0)
+                # kaldi way
+                nn.init.normal_(m.weight, std=1.0 / (m.weight.shape[1] ** 0.5))
+                nn.init.normal_(m.bias, std=1.0)
+
+    def kaldi_like_parameters(self):
+        ng_params = [
+            self.input_layer.weight,
+            self.input_layer.bias,
+            self.aux_layer.weight,
+            self.aux_layer.bias,
+            self.lf_mmi_head[-1].weight,
+            self.lf_mmi_head[-1].bias,
+            self.xent_head[-1].weight,
+            self.xent_head[-1].bias,
+        ]
+        bodies = []
+        for p in self.parameters():
+            found = False
+            for n in ng_params:
+                if p is n:
+                    found = True
+                    break
+            if not found:
+                bodies.append(p)
+        heads = list(self.lf_mmi_head[-1].parameters()) + list(self.xent_head[-1].parameters())
+        return [{"params": bodies, "weight_decay": 0.05}, {"params": heads, "weight_decay": 0.01}]
 
     def set_lda(self):
         if self.lda_mat is not None:

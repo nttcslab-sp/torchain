@@ -66,7 +66,7 @@ else
 fi
 
 if [ -z $model_dir ]; then
-    model_dir=exp/pytorch_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_ag${accum_grad}_xent${xent_regularize}${use_lda}
+    model_dir=exp/torch_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_ag${accum_grad}_xent${xent_regularize}${use_lda}
 fi
 
 mkdir -p $model_dir
