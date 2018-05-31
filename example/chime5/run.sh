@@ -39,7 +39,7 @@ graphdir=$chain_dir/tree_sp/graph
 trans_model=$chain_dir/tdnn1a_sp/final.mdl
 scoring_opts="--min-lmwt 4 --max-lmwt 15 --word_ins_penalty 0.0,0.5,1.0"
 lda_mat=$chain_dir/tdnn1a_sp/lda.mat
-
+post_acwt=10.0
 # misc config
 stage=0
 
@@ -117,7 +117,7 @@ if [ $stage -le 3 ]; then
             --allow-partial=true --word-symbol-table=$graphdir/words.txt \
             $trans_model $graphdir/HCLG.fst \
             ark:$model_dir/forward/${label}_split.JOB.ark \
-            "ark:|gzip -c > ${decode_dir}/lat.JOB.gz" || exit 1;
+            "ark:|lattice-scale --acoustic-scale=${post_acwt} ark:- ark:- | gzip -c > ${decode_dir}/lat.JOB.gz" || exit 1;
     done
 fi
 
