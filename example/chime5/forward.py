@@ -23,6 +23,13 @@ def get_parser():
     # FIXME do not provide n_time_width=29 manually
     parser.add_argument('--min_time_width', type=int, default=33,
                         help='minumum time width of input. input will be padded if time width is smaller')
+    parser.add_argument("--use_last_ivector", action="store_true")
+    parser.add_argument('--ivector_scale', type=int, default=10,
+                        help="scale of frame rate relative to input feature")
+    parser.add_argument("--chunk-length", type=int, default=140,
+                        help="length of chunk per 1 i-vector")
+    parser.add_argument("--chunk-overlap", type=int, default=14,
+                        help="overlap between chunks")
     return parser
 
 
@@ -51,7 +58,10 @@ def main():
 
             n_aux = aux.shape[0]
             # take center ivector frame
-            aux = aux[n_aux//2].unsqueeze(0)
+            if args.use_last_ivector:
+                aux = aux[-1].unsqueeze(0)
+            else:
+                aux = aux[n_aux//2].unsqueeze(0)
             # forward
             y, _ = model(x, aux)
             y = torch.nn.functional.log_softmax(y, dim=1).squeeze(0)

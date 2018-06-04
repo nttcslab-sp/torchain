@@ -13,7 +13,7 @@ def conv_relu_bn(n_in, n_out, kernel_size=3, stride=1, padding=0, dilation=1):
 
 
 class SimpleTDNN(nn.Module):
-    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512, n_bottleneck=320, lda_mat=None):
+    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512, n_bottleneck=320, lda_mat=None, args=None):
         """
         total kernel width should be 29 and stride 3
         """
@@ -25,6 +25,9 @@ class SimpleTDNN(nn.Module):
             n_first_unit = lda_mat.shape[0]
         else:
             n_first_unit = n_unit
+
+        if args is not None:
+            self.no_ivector = args.no_ivector
 
         self.input_layer = nn.Conv1d(n_freq, n_first_unit, n_input_kernel, stride=1)
         self.aux_layer = nn.Linear(n_aux, n_first_unit)
@@ -107,7 +110,10 @@ class SimpleTDNN(nn.Module):
 
     def forward(self, input, aux):
         hi = self.input_layer(input)
-        ha = self.aux_layer(aux)
-        h = hi + ha.unsqueeze(2)
+        if hasattr(self, "no_ivector") and self.no_ivector:
+            h = hi
+        else:
+            ha = self.aux_layer(aux)
+            h = hi + ha.unsqueeze(2)
         y = self.common(h)[:, :, :-2]
         return self.lf_mmi_head(y), self.xent_head(y)

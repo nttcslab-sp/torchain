@@ -44,6 +44,7 @@ def get_parser():
                          help="number of training epochs")
     parser.add_argument("--accum_grad", default=1, type=int,
                          help="number of gradient accumulation before update")
+    parser.add_argument("--no_ivector", action="store_true")
     # parser.add_argument("--max_loss", default=10.0, type=float,
     #                      help="max upperbound loss value to update")
 
@@ -102,7 +103,7 @@ def main():
         lda_mat = None
 
     # model preparation
-    model = models.SimpleTDNN(n_pdf, n_feat, n_ivec, lda_mat=lda_mat)
+    model = models.SimpleTDNN(n_pdf, n_feat, n_ivec, lda_mat=lda_mat, args=args)
     model = torch.nn.DataParallel(model)
     model.cuda()
     logging.info(model)
@@ -124,7 +125,7 @@ def main():
                           l2_regularize=args.l2_regularize,
                           leaky_hmm_coefficient=args.leaky_hmm_coefficient,
                           xent_regularize=args.xent_regularize,
-                          xent_input=lf_mmi_pred, kaldi_way=True)
+                          xent_input=xe_pred, kaldi_way=True)
 
     # main loop
     for epoch in range(args.n_epoch):

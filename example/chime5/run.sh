@@ -15,12 +15,12 @@ set -o pipefail
 # path config
 chime5_dir=$KALDI_ROOT/egs/chime5/s5
 exp_dir=$KALDI_ROOT/egs/chime5/s5/exp
-recog_set="dev_worn"
+recog_set="dev_worn dev_beamformit_ref"
 chain_dir=$exp_dir/chain_train_worn_u100k_cleaned
-
-
 # training config
-optim=SGD
+use_ivector=True
+n_epoch=20
+optim=Adam
 lr=1e-3
 xent_regularize=0.0
 model_dir=
@@ -57,16 +57,22 @@ if [ -d $trans_model ]; then
     exit 1;
 fi
 
+train_opt=""
 if [ -z $lda_mat ]; then
     use_lda=""
-    lda_opt=""
 else
     use_lda="_lda"
-    lda_opt="--lda_mat ${lda_mat}"
+    train_opt="${train_opt} --lda_mat ${lda_mat}"
+fi
+if [ $use_ivector = True ]; then
+    use_ivector="_ivec"
+else
+    use_ivector=""
+    train_opt="${train_opt} --no_ivector"
 fi
 
 if [ -z $model_dir ]; then
-    model_dir=exp/torch_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_ag${accum_grad}_xent${xent_regularize}${use_lda}
+    model_dir=exp/torchain_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_epoch${n_epoch}_ag${accum_grad}_xent${xent_regularize}${use_lda}${use_ivector}
 fi
 
 mkdir -p $model_dir
@@ -77,7 +83,7 @@ if [ $stage -le 1 ]; then
     ${train_cmd} --gpu $ngpu $model_dir/log/train.log python train.py \
            --exp_dir $exp_dir \
            --model_dir $model_dir \
-           --optim $optim --xent_regularize $xent_regularize --lr ${lr} --weight_decay ${weight_decay} --train_minibatch_size ${batchsize} --accum_grad ${accum_grad} ${lda_opt}
+           --optim $optim --xent_regularize $xent_regularize --lr ${lr} --weight_decay ${weight_decay} --train_minibatch_size ${batchsize} --accum_grad ${accum_grad} --n_epoch ${n_epoch} ${train_opt}
 fi
 
 nj=20
@@ -89,10 +95,10 @@ if [ $stage -le 2 ]; then
     mkdir -p $model_dir/forward
     for label in $recog_set; do
         aux_dir=$exp_dir/nnet3_train_worn_u100k_cleaned/ivectors_${label}_hires
-        input_dir=$exp_dir/../data/${recog_set}_hires/split$nj
+        input_dir=$exp_dir/../data/${label}_hires/split$nj
 
         ${decode_cmd} \
-            JOB=1:$nj $model_dir/log/forward.JOB.log \
+            JOB=1:$nj $model_dir/log/forward_${label}.JOB.log \
             python forward.py \
             --aux_scp $aux_dir/ivector_online.scp \
             --input_rs "ark,s,cs:apply-cmvn --norm-means=false --norm-vars=false --utt2spk=ark:${input_dir}/JOB/utt2spk scp:${input_dir}/JOB/cmvn.scp scp:${input_dir}/JOB/feats.scp ark:- |" \
@@ -109,7 +115,7 @@ if [ $stage -le 3 ]; then
         decode_dir=$model_dir/decode/${label}
         mkdir -p $decode_dir
         ${decode_cmd} \
-            JOB=1:$nj $model_dir/log/decode.JOB.log \
+            JOB=1:$nj $model_dir/log/decode_${label}.JOB.log \
             latgen-faster-mapped \
             --min-active=$min_active --max-active=$max_active \
             --max-mem=$max_mem --beam=$beam \
@@ -126,9 +132,10 @@ if [ $stage -le 4 ]; then
     echo "=== stage 4: evaluation ==="
     # see compute_wer.sh in chime5
     for label in $recog_set; do
-        decode_dir=$model_dir/decode/${label}
+        decode_dir=$(pwd)/$model_dir/decode/${label}
         data_dir=$chime5_dir/data/$label
-        $chime5_dir/local/score.sh $scoring_opts --cmd "${decode_cmd}" $data_dir $graphdir $decode_dir || exit 1;
+        scoring_opts="--min-lmwt 4 --max-lmwt 15 --word_ins_penalty -1.0,-0.5,0.0"
+        cd $chime5_dir; local/score.sh $scoring_opts --cmd "${decode_cmd}" $data_dir $graphdir $decode_dir || exit 1; cd -
     done
 
     for label in $recog_set; do
