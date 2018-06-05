@@ -17,6 +17,8 @@ chime5_dir=$KALDI_ROOT/egs/chime5/s5
 exp_dir=$KALDI_ROOT/egs/chime5/s5/exp
 recog_set="dev_worn dev_beamformit_ref"
 chain_dir=$exp_dir/chain_train_worn_u100k_cleaned
+egs_dir=$chain_dir/tdnn1a_sp/egs
+
 # training config
 use_ivector=True
 n_epoch=20
@@ -76,6 +78,19 @@ if [ -z $model_dir ]; then
 fi
 
 mkdir -p $model_dir
+scp_dir=exp/scp
+
+if [ $stage -le 0 ] && [ ! -f $scp_dir/egs.scp ]; then
+    echo "=== stage 0: prepare scp"
+    mkdir -p $scp_dir
+    negs=$(ls $egs_dir/cegs.*.ark | wc -l)
+
+    ${decode_cmd} JOB=1:$negs $scp_dir/log/scp.JOB.log nnet3-chain-copy-egs ark:$egs_dir/cegs.JOB.ark "ark,scp:/dev/null,| sed \"s|/dev/null|${egs_dir}/cegs.JOB.ark|\" > $scp_dir/cegs.JOB.scp"
+
+    cat $scp_dir/*.scp > $scp_dir/egs.scp
+fi
+
+exit 0
 
 # TODO support multi GPU
 if [ $stage -le 1 ]; then

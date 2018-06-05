@@ -131,4 +131,9 @@ namespace common {
         assert(kaldi::CuDevice::Instantiate().Enabled());
     }
 
+    inline void copy_to_mat(kaldi::GeneralMatrix& src, THFloatTensor* dst) {
+        THFloatTensor_resize2d(dst, src.NumRows(), src.NumCols());
+        auto mat = common::make_matrix(dst);
+        src.CopyToMat(&mat);
+    }
 }
