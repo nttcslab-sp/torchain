@@ -5,7 +5,7 @@ void my_lib_example_reader_free(void* reader_ptr);
 int my_lib_example_feats(void* reader_ptr, THFloatTensor* input, THFloatTensor* aux);
 
 /// custom example reader with shuffle and minibatch
-void* my_lib_example_rand_reader_new(const char* examples_rspecifier, int seed);
+void* my_lib_example_rand_reader_new(const char* examples_rspecifier, int seed, int batchsize);
 int my_lib_example_rand_reader_next(void* reader_ptr);
 void my_lib_example_rand_reader_free(void* reader_ptr);
 int my_lib_example_rand_feats(void* reader_ptr, THFloatTensor* input, THFloatTensor* aux);

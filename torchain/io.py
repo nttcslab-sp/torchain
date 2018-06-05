@@ -133,9 +133,9 @@ class RandExample(Example):
     """
     native C++ example reader without subprocess
     """
-    def __init__(self, rspec, seed):
+    def __init__(self, rspec, seed, batchsize):
         self.rspec = rspec
-        self.ptr = my_lib.my_lib_example_rand_reader_new(cstr(rspec), seed)
+        self.ptr = my_lib.my_lib_example_rand_reader_new(cstr(rspec), seed, batchsize)
 
     def __del__(self):
         my_lib.my_lib_example_rand_reader_free(self.ptr)
@@ -159,9 +159,9 @@ class RandExample(Example):
 
 
 @contextmanager
-def open_rand_example(scp_path, seed):
+def open_rand_example(scp_path, seed, batchsize):
     assert os.path.exists(scp_path)
     set_kaldi_device()
-    example = RandExample(scp_path, seed)
+    example = RandExample(scp_path, seed, batchsize)
     yield example
     del example

@@ -74,8 +74,8 @@ def test_io():
 
 
 def test_rand_io():
-    scp_path = "/data/work49/skarita/repos/torch-backup/example/chime5/small.scp"
-    seed = 0
+    scp_path = "/data/work49/skarita/repos/torch-backup/example/chime5/cegs1.scp" # small.scp"
+    seed = 1
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
     # with io.open_rand_example(scp_path, seed) as example:
@@ -90,7 +90,7 @@ def test_rand_io():
     for use_xent in [True]:
         for use_kaldi_way in [True]:
             print("xent: ", use_xent, "kaldi: ", use_kaldi_way)
-            with io.open_rand_example(scp_path, seed) as example:
+            with io.open_rand_example(scp_path, seed, 2) as example:
                 n_pdf = example.supervision.n_pdf
                 print(n_pdf)
                 # n_pdf = 2928

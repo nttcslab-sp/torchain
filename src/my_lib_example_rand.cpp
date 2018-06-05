@@ -37,10 +37,14 @@ struct RandReader {
     std::mt19937 engine;
     std::vector<std::string> keys;
     size_t current_key_pos = 0;
+    int batchsize = 1;
+    bool compress = true; // false;
+    Example minibatch;
 
-    RandReader(const std::string& rspec, int seed) :
+    RandReader(const std::string& rspec, int seed, int batchsize) :
         reader(BaseReader("scp:" + rspec)),
-        engine(seed)
+        engine(seed),
+        batchsize(batchsize)
     {
         this->read_keys(rspec);
         this->shuffle_keys();
@@ -78,7 +82,7 @@ struct RandReader {
     }
 
     void Next() {
-        ++this->current_key_pos;
+        this->current_key_pos += this->batchsize;
     }
 
     void Close() {
@@ -90,15 +94,27 @@ struct RandReader {
     }
 
     const T& Value() {
-        return this->reader.Value(this->Key());
+        if (this->batchsize == 1) {
+            return this->reader.Value(this->Key());
+        } else {
+            std::vector<Example> list;
+            list.reserve(this->batchsize);
+            for (size_t i = this->current_key_pos; i < this->keys.size() && i < this->current_key_pos + this->batchsize; ++i) {
+                // std::cout << "key: " << this->keys[i] << std::endl;
+                list.push_back(this->reader.Value(this->keys[i]));
+            }
+            // TODO think compress = true?
+            kaldi::nnet3::MergeChainExamples(this->compress, &list, &this->minibatch);
+            return this->minibatch;
+        }
     }
 };
 
 extern "C" {
     // TODO refactor this with template<class Reader>
 
-    void* my_lib_example_rand_reader_new(const char* examples_rspecifier, int seed) {
-        auto example_reader = new RandReader(examples_rspecifier, seed);
+    void* my_lib_example_rand_reader_new(const char* examples_rspecifier, int seed, int batchsize) {
+        auto example_reader = new RandReader(examples_rspecifier, seed, batchsize);
         return static_cast<void*>(example_reader);
     }
 
