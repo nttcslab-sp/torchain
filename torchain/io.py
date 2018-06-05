@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 
 import torch
@@ -17,9 +18,8 @@ def set_kaldi_device(device_id=0):
 
 
 class Supervision:
-    def __init__(self, egs):
-        assert isinstance(egs, Example)
-        self.ptr = my_lib.my_lib_supervision_new(egs.ptr)
+    def __init__(self, ptr):
+        self.ptr = ptr
         if self.ptr == ffi.NULL:
             raise ValueError("null supervision ptr")
         self.n_pdf = my_lib.my_lib_supervision_num_pdf(self.ptr)
@@ -29,6 +29,23 @@ class Supervision:
 
     def __del__(self):
         my_lib.my_lib_supervision_free(self.ptr)
+
+
+def feats(egs):
+    inp = torch.FloatTensor()
+    aux = torch.FloatTensor()
+    if isinstance(egs, Example):
+        n = my_lib.my_lib_example_feats(self.ptr, inp, aux)
+        # TODO add RandExample here
+    else:
+        raise ValueError("unknown reader type")
+
+    if n == 1:
+        return inp, None
+    elif n == 2:
+        return inp, aux
+    else:
+        raise ValueError("unsupported number of inputs (up to 2): %d" % n)
 
 
 class DenominatorGraph:
@@ -51,9 +68,12 @@ class Example:
     def next(self):
         return my_lib.my_lib_example_reader_next(self.ptr) == 1
 
+    def load_feats(self, inp, aux):
+        return my_lib.my_lib_example_feats(self.ptr, inp, aux)
+
     @property
     def supervision(self):
-        return Supervision(self)
+        return Supervision(my_lib.my_lib_supervision_new(self.ptr))
 
     @property
     def indexes(self):
@@ -66,7 +86,7 @@ class Example:
     def inputs(self):
         inp = torch.FloatTensor()
         aux = torch.FloatTensor()
-        n = my_lib.my_lib_example_feats(self.ptr, inp, aux)
+        n = self.load_feats(inp, aux)
         if n == 1:
             return inp, None
         elif n == 2:
@@ -106,4 +126,42 @@ def open_example(cmd):
     yield example
     os.remove(FIFO)
     os.rmdir(tmpdir)
+    del example
 
+
+class RandExample(Example):
+    """
+    native C++ example reader without subprocess
+    """
+    def __init__(self, rspec, seed):
+        self.rspec = rspec
+        self.ptr = my_lib.my_lib_example_rand_reader_new(cstr(rspec), seed)
+
+    def __del__(self):
+        my_lib.my_lib_example_rand_reader_free(self.ptr)
+
+    def next(self):
+        return my_lib.my_lib_example_rand_reader_next(self.ptr) == 1
+
+    def load_feats(self, inp, aux):
+        return my_lib.my_lib_example_rand_feats(self.ptr, inp, aux)
+
+    @property
+    def supervision(self):
+        return Supervision(my_lib.my_lib_supervision_rand_new(self.ptr))
+
+    @property
+    def indexes(self):
+        idx = torch.LongTensor()
+        err = my_lib.my_lib_example_reader_indexes(self.ptr, idx);
+        assert err != 0
+        return idx
+
+
+@contextmanager
+def open_rand_example(scp_path, seed):
+    assert os.path.exists(scp_path)
+    set_kaldi_device()
+    example = RandExample(scp_path, seed)
+    yield example
+    del example

@@ -85,9 +85,13 @@ if [ $stage -le 0 ] && [ ! -f $scp_dir/egs.scp ]; then
     mkdir -p $scp_dir
     negs=$(ls $egs_dir/cegs.*.ark | wc -l)
 
-    ${decode_cmd} JOB=1:$negs $scp_dir/log/scp.JOB.log nnet3-chain-copy-egs ark:$egs_dir/cegs.JOB.ark "ark,scp:/dev/null,| sed \"s|/dev/null|${egs_dir}/cegs.JOB.ark|\" > $scp_dir/cegs.JOB.scp"
+    for ark in $egs_dir/cegs.*.ark; do
+        echo $ark
+        python ark2scp.py $ark >> $scp_dir/egs.scp
+    done
 
-    cat $scp_dir/*.scp > $scp_dir/egs.scp
+    # ${decode_cmd} JOB=1:$negs $scp_dir/log/scp.JOB.log nnet3-chain-copy-egs ark:$egs_dir/cegs.JOB.ark "ark,scp:/dev/null,| sed \"s|/dev/null|${egs_dir}/cegs.JOB.ark|\" > $scp_dir/cegs.JOB.scp"
+    # cat $scp_dir/*.scp > $scp_dir/egs.scp
 fi
 
 exit 0

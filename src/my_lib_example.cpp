@@ -21,52 +21,55 @@
 // http://cffi.readthedocs.io/en/latest/ref.html#ffi-null
 
 
-using SeqReader = kaldi::nnet3::SequentialNnetChainExampleReader;
-using RandReader = kaldi::nnet3::RandomAccessNnetChainExampleReader;
-
+using ExampleReader = kaldi::nnet3::SequentialNnetChainExampleReader;
 using Example = kaldi::nnet3::NnetChainExample;
 using kaldi::chain::Supervision;
 
+void copy_to_mat(kaldi::GeneralMatrix& src, THFloatTensor* dst) {
+    THFloatTensor_resize2d(dst, src.NumRows(), src.NumCols());
+    auto mat = common::make_matrix(dst);
+    src.CopyToMat(&mat);
+}
 
 extern "C" {
     void* my_lib_example_reader_new(const char* examples_rspecifier) {
-        auto example_reader = new SeqReader(examples_rspecifier);
+        auto example_reader = new ExampleReader(examples_rspecifier);
         return static_cast<void*>(example_reader);
     }
 
     int my_lib_example_reader_next(void* reader_ptr) {
-        auto reader = static_cast<SeqReader*>(reader_ptr);
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
         if (reader->Done()) return 0; // fail
         reader->Next();
         return 1; // success
     }
 
     void my_lib_example_reader_free(void* reader_ptr) {
-        auto reader = static_cast<SeqReader*>(reader_ptr);
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
         reader->Close();
         delete reader;
     }
 
     // NOTE: this function returns size of inputs instead of success/fail
     int my_lib_example_feats(void* reader_ptr, THFloatTensor* input, THFloatTensor* aux) {
-        auto reader = static_cast<SeqReader*>(reader_ptr);
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
         if (reader->Done()) return 0; // fail
         auto&& egs = reader->Value();
 
         // read input feats. e.g., mfcc
         if (input != nullptr) {
-            common::copy_to_mat(egs.inputs[0].features, input);
+            copy_to_mat(egs.inputs[0].features, input);
         }
 
         // read aux feats. e.g., i-vector
         if (aux != nullptr && egs.inputs.size() > 1) {
-            common::copy_to_mat(egs.inputs[1].features, aux);
+            copy_to_mat(egs.inputs[1].features, aux);
         }
         return egs.inputs.size(); // success
     }
 
     void* my_lib_supervision_new(void* reader_ptr) {
-        auto reader = static_cast<SeqReader*>(reader_ptr);
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
         if (reader->Done()) return nullptr; // fail
         auto&& egs = reader->Value();
         return static_cast<void*>(new Supervision(egs.outputs[0].supervision));
@@ -104,7 +107,7 @@ extern "C" {
         /// the nnet to reorder things internally to match the requested output
         /// (for layers inside the neural net, the ordering is (frame 0; frame 1 ...)
         /// as this corresponds to the order you get when you sort a vector of Index).
-        auto reader = static_cast<SeqReader*>(reader_ptr);
+        auto reader = static_cast<ExampleReader*>(reader_ptr);
         if (reader->Done()) return 0; // fail
         auto&& egs = reader->Value();
 

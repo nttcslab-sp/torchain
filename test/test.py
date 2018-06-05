@@ -73,7 +73,53 @@ def test_io():
                         break
 
 
+def test_rand_io():
+    scp_path = "/data/work49/skarita/repos/torch-backup/example/chime5/small.scp"
+    seed = 0
+    exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
+    den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
+    # with io.open_rand_example(scp_path, seed) as example:
+    #     idx = example.indexes
+    #     print(idx.shape)
+    #     print(idx[0])
+    #     (mfcc, ivec), sup = example.value()
+    #     print(mfcc.shape)
+    #     sup = example.supervision
+    #     assert sup.n_frame == idx.shape[1]
+
+    for use_xent in [True]:
+        for use_kaldi_way in [True]:
+            print("xent: ", use_xent, "kaldi: ", use_kaldi_way)
+            with io.open_rand_example(scp_path, seed) as example:
+                n_pdf = example.supervision.n_pdf
+                print(n_pdf)
+                # n_pdf = 2928
+                den_graph = io.DenominatorGraph(den_fst_rs, n_pdf)
+                model = Model(n_pdf)
+                model.cuda()
+                print(model)
+                opt = torch.optim.SGD(model.parameters(), lr=1e-6)
+                count = 0
+                for (mfcc, ivec), supervision in example:
+                    x = Variable(mfcc).cuda()
+                    print("input:", x.shape)
+                    pred, xent = model(x)
+                    if not use_xent:
+                        xent = None
+                    loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01,
+                                               xent_regularize=0.01, xent_input=xent, kaldi_way=use_kaldi_way)
+                    opt.zero_grad()
+                    loss.backward()
+                    opt.step()
+                    print(count, results)
+                    count += 1
+                    if count > 4:
+                        break
+
+
+
 if __name__ == "__main__":
     # test_chain()
-    idx = test_io()
+    # idx = test_io()
+    idx = test_rand_io()
 
