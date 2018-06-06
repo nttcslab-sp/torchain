@@ -6,6 +6,9 @@
 #include <random>
 #include <assert.h>
 
+#include <unordered_map>
+#include <unordered_set>
+
 #include "common.hpp"
 #include <THC/THC.h>
 
@@ -35,78 +38,123 @@ struct RandReader {
 
     BaseReader reader;
     std::mt19937 engine;
-    std::vector<std::string> keys;
-    size_t current_key_pos = 0;
+    std::vector<std::vector<std::string>> key_batch;
+    std::unordered_map<size_t, std::vector<std::string>> length_to_keys;
+    std::unordered_set<size_t> lengths;
     int batchsize = 1;
-    bool compress = true; // false;
+    bool verbose = false;
+    bool compress = false;
     Example minibatch;
+    int current_pos = 0;
+    int prev_pos = -1;
 
-    RandReader(const std::string& rspec, int seed, int batchsize) :
+    RandReader(const std::string& rspec, int seed, int batchsize,
+               bool verbose=true, bool compress=false) :
         reader(BaseReader("scp:" + rspec)),
         engine(seed),
-        batchsize(batchsize)
+        batchsize(batchsize),
+        verbose(verbose),
+        compress(compress)
     {
+        if (verbose) std::cerr << "read keys" << std::endl;
         this->read_keys(rspec);
+        if (verbose) std::cerr << "shuffle keys" << std::endl;
         this->shuffle_keys();
     }
 
     void read_keys(const std::string& rspec) {
+        std::ios::sync_with_stdio(false);
         std::ifstream ifs(rspec);
         if (!ifs.is_open()) {
             throw std::runtime_error(rspec + " does not exist");
         }
         bool key = true;
+        std::vector<std::string> keys;
+        if (verbose) std::cerr << "accumurate keys" << std::endl;
         while (ifs) {
             std::string line;
             ifs >> line;
-            if (key) {
-                this->keys.push_back(line);
+            if (key && !line.empty()) {
+                keys.push_back(line);
             }
             key = !key;
+        }
+
+        if (verbose) std::cerr << "sort length" << std::endl;
+        // create length_to_keys
+        for (auto&& k : keys) {
+            auto l = this->reader.Value(k).outputs[0].supervision.frames_per_sequence;
+            if (this->length_to_keys.count(l) == 0) {
+                this->length_to_keys[l] = {};
+            }
+            this->length_to_keys[l].push_back(k);
         }
     }
 
     void shuffle_keys() {
-        std::shuffle(this->keys.begin(), this->keys.end(), engine);
+        this->key_batch.clear();
+        std::vector<std::string> batch;
+        batch.reserve(this->batchsize);
+        // shuffle batch per length
+        for (auto kv : this->length_to_keys) {
+            auto& keys = kv.second;
+            std::shuffle(keys.begin(), keys.end(), this->engine);
+            for (const auto& k : keys) {
+                batch.push_back(k);
+                if (batch.size() == this->batchsize) {
+                    this->key_batch.push_back(batch);
+                    batch.clear();
+                }
+            }
+            if (batch.size() > 0) {
+                this->key_batch.push_back(batch);
+            }
+            batch.clear();
+        }
+        std::shuffle(this->key_batch.begin(), this->key_batch.end(), this->engine);
     }
 
     void reset() {
-        this->current_key_pos = 0;
+        this->current_pos = 0;
+        this->prev_pos = -1;
         this->shuffle_keys();
     }
 
-
     /// use sequential reader interface
+    const T& Value() {
+        std::vector<Example> list;
+        list.reserve(this->batchsize);
+        if (this->current_pos != this->prev_pos) {
+            this->prev_pos = this->current_pos;
+            for (const auto& k : this->key_batch[this->current_pos]) {
+                const auto& v = this->reader.Value(k);
+                list.push_back(v);
+                // std::cout << "=== debug ===" << std::endl;
+                // std::cout << "key: " << k << std::endl;
+                // const auto& sup = v.outputs[0].supervision;
+                // const auto& inp = v.inputs[0].features;
+                // std::cout << "supervision.label_dim: " << sup.label_dim << std::endl;
+                // std::cout << "supervision.num_sequences: " << sup.num_sequences << std::endl;
+                // std::cout << "supervision.frames_per_sequence: " << sup.frames_per_sequence << std::endl;
+                // std::cout << "inp.NumRows(): "  << inp.NumRows() << std::endl;
+                // std::cout << "inp.NumCols(): "  << inp.NumCols() << std::endl;
+            }
+            kaldi::nnet3::MergeChainExamples(this->compress, &list, &this->minibatch);
+        }
+        return this->minibatch;
+    }
+
+
     bool Done() const {
-        return this->current_key_pos >= keys.size();
+        return this->current_pos >= this->key_batch.size();
     }
 
     void Next() {
-        this->current_key_pos += this->batchsize;
+        ++this->current_pos;
     }
 
     void Close() {
         this->reader.Close();
-    }
-
-    std::string Key() const {
-        return this->keys[this->current_key_pos];
-    }
-
-    const T& Value() {
-        if (this->batchsize == 1) {
-            return this->reader.Value(this->Key());
-        } else {
-            std::vector<Example> list;
-            list.reserve(this->batchsize);
-            for (size_t i = this->current_key_pos; i < this->keys.size() && i < this->current_key_pos + this->batchsize; ++i) {
-                // std::cout << "key: " << this->keys[i] << std::endl;
-                list.push_back(this->reader.Value(this->keys[i]));
-            }
-            // TODO think compress = true?
-            kaldi::nnet3::MergeChainExamples(this->compress, &list, &this->minibatch);
-            return this->minibatch;
-        }
     }
 };
 

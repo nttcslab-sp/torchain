@@ -1,3 +1,5 @@
+import time
+
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
@@ -56,6 +58,7 @@ def test_io():
                 print(model)
                 opt = torch.optim.SGD(model.parameters(), lr=1e-6)
                 count = 0
+                start = time.time()
                 for (mfcc, ivec), supervision in example:
                     x = Variable(mfcc).cuda()
                     print("input:", x.shape)
@@ -69,57 +72,58 @@ def test_io():
                     opt.step()
                     print(count, results)
                     count += 1
-                    if count > 4:
+                    if count > 10:
                         break
+                elapsed = time.time() - start
+                print("took: %f" % (elapsed))
 
 
 def test_rand_io():
-    scp_path = "/data/work49/skarita/repos/torch-backup/example/chime5/cegs1.scp" # small.scp"
+    scp_path = "/data/work49/skarita/repos/torch-backup/100.scp" # example/chime5/exp/scp/egs.scp"
     seed = 1
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
-    # with io.open_rand_example(scp_path, seed) as example:
-    #     idx = example.indexes
-    #     print(idx.shape)
-    #     print(idx[0])
-    #     (mfcc, ivec), sup = example.value()
-    #     print(mfcc.shape)
-    #     sup = example.supervision
-    #     assert sup.n_frame == idx.shape[1]
 
     for use_xent in [True]:
         for use_kaldi_way in [True]:
             print("xent: ", use_xent, "kaldi: ", use_kaldi_way)
-            with io.open_rand_example(scp_path, seed, 2) as example:
-                n_pdf = example.supervision.n_pdf
-                print(n_pdf)
-                # n_pdf = 2928
-                den_graph = io.DenominatorGraph(den_fst_rs, n_pdf)
-                model = Model(n_pdf)
-                model.cuda()
-                print(model)
-                opt = torch.optim.SGD(model.parameters(), lr=1e-6)
-                count = 0
-                for (mfcc, ivec), supervision in example:
-                    x = Variable(mfcc).cuda()
-                    print("input:", x.shape)
-                    pred, xent = model(x)
-                    if not use_xent:
-                        xent = None
-                    loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01,
-                                               xent_regularize=0.01, xent_input=xent, kaldi_way=use_kaldi_way)
-                    opt.zero_grad()
-                    loss.backward()
-                    opt.step()
-                    print(count, results)
-                    count += 1
-                    if count > 4:
-                        break
+            print("shuffling")
+            io.set_kaldi_device()
+            example = io.RandExample(scp_path, seed, 128)
+            n_pdf = example.supervision.n_pdf
+            print(n_pdf)
+            # n_pdf = 2928
+            den_graph = io.DenominatorGraph(den_fst_rs, n_pdf)
+            model = Model(n_pdf)
+            model.cuda()
+            print(model)
+            opt = torch.optim.SGD(model.parameters(), lr=1e-6)
+            count = 0
+            start = time.time()
+            for (mfcc, ivec), supervision in example:
+                x = Variable(mfcc).cuda()
+                print("input:", x.shape)
+                pred, xent = model(x)
+                if not use_xent:
+                    xent = None
+                loss, results = chain_loss(pred, den_graph, supervision, l2_regularize=0.01,
+                                           xent_regularize=0.01, xent_input=xent, kaldi_way=use_kaldi_way)
+                opt.zero_grad()
+                loss.backward()
+                opt.step()
+                print(count, results)
+                count += 1
+                if count > 10:
+                    break
+            elapsed = time.time() - start
+            print("took: %f" % (elapsed))
+
+
 
 
 
 if __name__ == "__main__":
     # test_chain()
-    # idx = test_io()
-    idx = test_rand_io()
+    test_rand_io()
+    test_io()
 

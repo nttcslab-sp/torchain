@@ -77,7 +77,7 @@ all: release
 # . $(KALDI_ROOT)/tools/config/common_path.sh
 #$(KALDI_ROOT)/src/cudamatrix:$(KALDI_ROOT)/src/matrix:$(KALDI_ROOT)/src/chain:$(KALDI_ROOT)/src/nnet3:$(LD_LIBRARY_PATH)
 test: LD_LIBRARY_PATH := $(KALDI_ROOT)/src/lib:$(FST_ROOT)/lib:$(LD_LIBRARY_PATH)
-test: debug
+test: release
 	# cd  $(KALDI_ROOT)/egs/chime5/s5/ && source ./path.sh && cd - && source $(VENV_ROOT) &&
 	ln -sf $(PWD)/torchain/_ext/my_lib/torchain._ext.my_lib._my_lib.so ./torchain/_ext/my_lib/_my_lib.so
 	. $(KALDI_ROOT)/tools/config/common_path.sh && PYTHONPATH=$(PWD):$(PYTHONPATH) python test/test.py
