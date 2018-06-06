@@ -74,35 +74,52 @@ else
 fi
 
 if [ -z $model_dir ]; then
-    model_dir=exp/torchain_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_epoch${n_epoch}_ag${accum_grad}_xent${xent_regularize}${use_lda}${use_ivector}
+    model_dir=exp/torchain0.5_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_epoch${n_epoch}_ag${accum_grad}_xent${xent_regularize}${use_lda}${use_ivector}
 fi
 
 mkdir -p $model_dir
 scp_dir=exp/scp
 
-if [ $stage -le 0 ] && [ ! -f $scp_dir/egs.scp ]; then
+if [ $stage -le 0 ] && [ ! -f $scp_dir/train.scp ]; then
     echo "=== stage 0: prepare scp"
     mkdir -p $scp_dir
+
+    # # TODO use decode_cmd
+    # for ark in $egs_dir/cegs.*.ark; do
+    #     echo $ark
+    #     python ark2scp.py $ark >> $scp_dir/train_egs.scp
+    # done
+    # python ark2scp.py $egs_dir/valid_diagnostic.cegs.ark > $scp_dir/valid_egs.scp
+    # python -c "from torchain.io import print_key_length; print_key_length('scp:${scp_dir}/train_egs.scp', '${scp_dir}/train_egs.scp.len')"
+    # python -c "from torchain.io import print_key_length; print_key_length('scp:${scp_dir}/valid_egs.scp', '${scp_dir}/valid_egs.scp.len')"
+
+    # prepare valid.scp
+    ${decode_cmd} $scp_dir/log/valid.scp.log \
+                  python ark2scp.py $egs_dir/valid_diagnostic.cegs --scp $scp_dir/valid.scp || exit 1
+    ${decode_cmd} $scp_dir/log/valid.scp.len.log \
+                  python -c "from torchain.io import print_key_length; print_key_length('scp:${scp_dir}/valid.scp', '${scp_dir}/valid.scp.len')" || exit 1
+
+    # prepare train.scp
     negs=$(ls $egs_dir/cegs.*.ark | wc -l)
 
-    for ark in $egs_dir/cegs.*.ark; do
-        echo $ark
-        python ark2scp.py $ark >> $scp_dir/egs.scp
-    done
+    ${decode_cmd} JOB=1:$negs $scp_dir/log/cegs.JOB.scp.log \
+                  python ark2scp.py $egs_dir/cegs.JOB.ark --scp $scp_dir/cegs.JOB.scp || exit 1
+    ${decode_cmd} JOB=1:$negs $scp_dir/log/cegs.JOB.scp.len.log \
+                  python -c "from torchain.io import print_key_length; print_key_length('scp:${scp_dir}/cegs.JOB.scp', '${scp_dir}/cegs.JOB.scp.len')" || exit 1
 
-    # ${decode_cmd} JOB=1:$negs $scp_dir/log/scp.JOB.log nnet3-chain-copy-egs ark:$egs_dir/cegs.JOB.ark "ark,scp:/dev/null,| sed \"s|/dev/null|${egs_dir}/cegs.JOB.ark|\" > $scp_dir/cegs.JOB.scp"
-    # cat $scp_dir/*.scp > $scp_dir/egs.scp
+    cat $scp_dir/cegs.*.scp > $scp_dir/train.scp || exit 1
+    cat $scp_dir/cegs.*.scp.len > $scp_dir/train.scp.len || exit 1
 fi
-
-exit 0
 
 # TODO support multi GPU
 if [ $stage -le 1 ]; then
     echo "=== stage 1: acoustic model training ==="
-    ${train_cmd} --gpu $ngpu $model_dir/log/train.log python train.py \
-           --exp_dir $exp_dir \
-           --model_dir $model_dir \
-           --optim $optim --xent_regularize $xent_regularize --lr ${lr} --weight_decay ${weight_decay} --train_minibatch_size ${batchsize} --accum_grad ${accum_grad} --n_epoch ${n_epoch} ${train_opt}
+    ${train_cmd} --gpu $ngpu $model_dir/log/train.log python train_faster.py \
+                 --model_dir $model_dir \
+                 --den_fst $chain_dir/tdnn1a_sp/den.fst \
+                 --train_scp $scp_dir/train.scp --valid_scp $scp_dir/valid.scp \
+                 --optim $optim --xent_regularize $xent_regularize --lr ${lr} --weight_decay ${weight_decay} \
+                 --train_minibatch_size ${batchsize} --accum_grad ${accum_grad} --n_epoch ${n_epoch} ${train_opt}
 fi
 
 nj=20

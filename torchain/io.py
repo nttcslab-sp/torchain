@@ -129,17 +129,34 @@ def open_example(cmd):
     del example
 
 
+def print_key_length(scp_path, len_file="/dev/stdout"):
+    my_lib.print_key_length(cstr(scp_path), cstr(len_file))
+
+
 class RandExample(Example):
     """
     native C++ example reader without subprocess
     """
-    def __init__(self, rspec, seed, batchsize):
-        self.rspec = rspec
-        self.ptr = my_lib.my_lib_example_rand_reader_new(cstr(rspec), seed, batchsize)
+    def __init__(self, scp_path, seed, batchsize, len_file=""):
+        assert os.path.exists(scp_path)
+        self.scp_path = scp_path
+        self.ptr = my_lib.my_lib_example_rand_reader_new(cstr(scp_path), seed, batchsize, cstr(len_file))
 
     def __del__(self):
         my_lib.my_lib_example_rand_reader_free(self.ptr)
 
+    def reset(self):
+        my_lib.my_lib_example_rand_reader_reset(self.ptr)
+
+    @property
+    def n_batch(self):
+        return my_lib.my_lib_example_rand_reader_num_batch(self.ptr)
+
+    @property
+    def n_data(self):
+        return my_lib.my_lib_example_rand_reader_num_data(self.ptr)
+
+    # override functions
     def next(self):
         return my_lib.my_lib_example_rand_reader_next(self.ptr) == 1
 
@@ -156,12 +173,3 @@ class RandExample(Example):
         err = my_lib.my_lib_example_reader_indexes(self.ptr, idx);
         assert err != 0
         return idx
-
-
-@contextmanager
-def open_rand_example(scp_path, seed, batchsize):
-    assert os.path.exists(scp_path)
-    set_kaldi_device()
-    example = RandExample(scp_path, seed, batchsize)
-    yield example
-    del example

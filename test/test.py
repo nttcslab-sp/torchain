@@ -79,7 +79,8 @@ def test_io():
 
 
 def test_rand_io():
-    scp_path = "/data/work49/skarita/repos/torch-backup/100.scp" # example/chime5/exp/scp/egs.scp"
+    # scp_path = "/data/work49/skarita/repos/torch-backup/100.scp" # example/chime5/exp/scp/egs.scp"
+    scp_path = "/data/work49/skarita/repos/torch-backup/example/chime5/exp/scp/train.scp"
     seed = 1
     exp_root = "/data/work70/skarita/exp/chime5/kaldi-22fbdd/egs/chime5/s5/"
     den_fst_rs = exp_root + "exp/chain_train_worn_u100k_cleaned/tdnn1a_sp/den.fst"
@@ -125,5 +126,5 @@ def test_rand_io():
 if __name__ == "__main__":
     # test_chain()
     test_rand_io()
-    test_io()
+    # test_io()
 

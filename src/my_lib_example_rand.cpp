@@ -44,17 +44,21 @@ struct RandReader {
     int batchsize = 1;
     bool verbose = false;
     bool compress = false;
+    std::string len_file_name;
     Example minibatch;
+    std::vector<Example> batch_list;
     int current_pos = 0;
     int prev_pos = -1;
+    int n_data = 0;
 
     RandReader(const std::string& rspec, int seed, int batchsize,
-               bool verbose=true, bool compress=false) :
+               const std::string& len_file="", bool verbose=true, bool compress=false) :
         reader(BaseReader("scp:" + rspec)),
         engine(seed),
         batchsize(batchsize),
         verbose(verbose),
-        compress(compress)
+        compress(compress),
+        len_file_name(len_file)
     {
         if (verbose) std::cerr << "read keys" << std::endl;
         this->read_keys(rspec);
@@ -63,31 +67,46 @@ struct RandReader {
     }
 
     void read_keys(const std::string& rspec) {
-        std::ios::sync_with_stdio(false);
-        std::ifstream ifs(rspec);
-        if (!ifs.is_open()) {
-            throw std::runtime_error(rspec + " does not exist");
-        }
-        bool key = true;
-        std::vector<std::string> keys;
-        if (verbose) std::cerr << "accumurate keys" << std::endl;
-        while (ifs) {
-            std::string line;
-            ifs >> line;
-            if (key && !line.empty()) {
-                keys.push_back(line);
-            }
-            key = !key;
-        }
+        // clear
+        this->length_to_keys.clear();
+        this->n_data = 0;
 
-        if (verbose) std::cerr << "sort length" << std::endl;
-        // create length_to_keys
-        for (auto&& k : keys) {
-            auto l = this->reader.Value(k).outputs[0].supervision.frames_per_sequence;
-            if (this->length_to_keys.count(l) == 0) {
-                this->length_to_keys[l] = {};
+        std::ifstream len_ifile;
+        if (this->len_file_name.empty()) {
+            len_ifile.open(rspec + ".len");
+        } else {
+            len_ifile.open(this->len_file_name);
+        }
+        if (len_ifile.is_open()) {
+            std::string s;
+            bool is_key = true;
+            std::string key;
+            while (len_ifile) {
+                len_ifile >> s;
+                if (is_key) { // && !s.empty()) {
+                    key = s;
+                } else {
+                    if (verbose) std::cout << key << " ===> " << s << std::endl;
+                    this->length_to_keys[std::stoi(s)].push_back(key);
+                    ++this->n_data;
+                }
+                is_key = !is_key;
             }
-            this->length_to_keys[l].push_back(k);
+        } else {
+            std::cerr << "WARNING: len_file (" << this->len_file_name
+                      << ") is not found. loading lengths from scp. maybe it takes long time" << std::endl;
+            for (auto seq_reader = kaldi::nnet3::SequentialNnetChainExampleReader("scp:" + rspec);
+                 !seq_reader.Done(); seq_reader.Next()) {
+                const auto& k = seq_reader.Key();
+                const auto& v = seq_reader.Value();
+                auto l = v.outputs[0].supervision.frames_per_sequence;
+                if (this->length_to_keys.count(l) == 0) {
+                    this->length_to_keys[l] = {};
+                }
+                // if (verbose) std::cout << k << " ===> " << l << std::endl;
+                this->length_to_keys[l].push_back(k);
+                ++this->n_data;
+            }
         }
     }
 
@@ -122,13 +141,12 @@ struct RandReader {
 
     /// use sequential reader interface
     const T& Value() {
-        std::vector<Example> list;
-        list.reserve(this->batchsize);
+        this->batch_list.clear();
         if (this->current_pos != this->prev_pos) {
             this->prev_pos = this->current_pos;
             for (const auto& k : this->key_batch[this->current_pos]) {
                 const auto& v = this->reader.Value(k);
-                list.push_back(v);
+                this->batch_list.push_back(v);
                 // std::cout << "=== debug ===" << std::endl;
                 // std::cout << "key: " << k << std::endl;
                 // const auto& sup = v.outputs[0].supervision;
@@ -139,7 +157,7 @@ struct RandReader {
                 // std::cout << "inp.NumRows(): "  << inp.NumRows() << std::endl;
                 // std::cout << "inp.NumCols(): "  << inp.NumCols() << std::endl;
             }
-            kaldi::nnet3::MergeChainExamples(this->compress, &list, &this->minibatch);
+            kaldi::nnet3::MergeChainExamples(this->compress, &this->batch_list, &this->minibatch);
         }
         return this->minibatch;
     }
@@ -160,10 +178,36 @@ struct RandReader {
 
 extern "C" {
     // TODO refactor this with template<class Reader>
+    void print_key_length(const char* rspec, const char* len_file) {
+        std::ofstream ofs(len_file);
+        for (auto seq_reader = kaldi::nnet3::SequentialNnetChainExampleReader(rspec);
+             !seq_reader.Done(); seq_reader.Next()) {
+            const auto& k = seq_reader.Key();
+            const auto& v = seq_reader.Value();
+            auto l = v.outputs[0].supervision.frames_per_sequence;
+            ofs << k << " " << l << "\n";
+        }
+    }
 
-    void* my_lib_example_rand_reader_new(const char* examples_rspecifier, int seed, int batchsize) {
-        auto example_reader = new RandReader(examples_rspecifier, seed, batchsize);
+    void* my_lib_example_rand_reader_new(const char* examples_rspecifier, int seed, int batchsize,
+                                         const char* len_file) {
+        auto example_reader = new RandReader(examples_rspecifier, seed, batchsize, len_file, false);
         return static_cast<void*>(example_reader);
+    }
+
+    void my_lib_example_rand_reader_reset(void* reader_ptr) {
+        auto reader = static_cast<RandReader*>(reader_ptr);
+        reader->reset();
+    }
+
+    int my_lib_example_rand_reader_num_batch(void* reader_ptr) {
+        auto reader = static_cast<RandReader*>(reader_ptr);
+        return reader->key_batch.size();
+    }
+
+    int my_lib_example_rand_reader_num_data(void* reader_ptr) {
+        auto reader = static_cast<RandReader*>(reader_ptr);
+        return reader->n_data;
     }
 
     int my_lib_example_rand_reader_next(void* reader_ptr) {
