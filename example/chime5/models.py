@@ -156,24 +156,40 @@ class MultiHeadAttention(nn.Module):
         context = context.permute(0, 2, 3, 1).contiguous().view(n_batch, self.n_head * self.n_value, n_time)
         return self.out_linear(context)
 
+class LayerNorm(nn.Module):
+    def __init__(self, features, eps=1e-6, dim=1):
+        super(LayerNorm, self).__init__()
+        self.dim = dim
+        self.a_2 = nn.Parameter(torch.ones(1, features, 1))
+        self.b_2 = nn.Parameter(torch.zeros(1, features, 1))
+        self.eps = eps
+
+    def forward(self, x):
+        mean = x.mean(self.dim, keepdim=True)
+        std = x.std(self.dim, keepdim=True)
+        return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
+
 class SelfAttention(nn.Module):
-    def __init__(self, n_in, n_head, n_key=None, n_hid=512):
+    def __init__(self, n_in, n_head, n_key=None, n_value=None, n_hid=512):
         super().__init__()
-        self.self_attn = MultiHeadAttention(n_in, n_head, n_key)
+        self.self_attn = MultiHeadAttention(n_in, n_head, n_key, n_value)
         self.ff = nn.Sequential(
             nn.Conv1d(n_in, n_hid, 1),
             nn.ReLU(),
             nn.Conv1d(n_hid, n_in, 1),
         )
+        self.ln1 = LayerNorm(n_in, dim=1)
+        self.ln2 = LayerNorm(n_in, dim=1)
 
     def forward(self, x):
-        context = self.self_attn(x)
+        context = self.self_attn(self.ln1(x))
         out1 = context + x
-        out2 = self.ff(out1)
+        out2 = self.ff(self.ln2(out1))
         return out2 + x
 
+
 class SelfAttentionTDNN(TDNNBase):
-    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512, n_head=8, n_key=None,
+    def __init__(self, n_pdf, n_freq=40, n_aux=100, n_time=29, n_stride=3, n_unit=512, n_head=8, n_key=32, n_value=64,
                  n_bottleneck=320, lda_mat=None, args=None):
         """
         total kernel width should be 29 and stride 3
@@ -194,21 +210,26 @@ class SelfAttentionTDNN(TDNNBase):
         self.aux_layer = nn.Linear(n_aux, n_first_unit)
 
         self.common = nn.Sequential(
-            SelfAttention(n_first_unit, n_head, n_key),
+            SelfAttention(n_first_unit, n_head, n_key, n_value),
             conv_relu_bn(n_first_unit, n_unit, 1),
             # 3*2=6
+            SelfAttention(n_unit, n_head, n_key, n_value),
             conv_relu_bn(n_unit, n_unit, 3),
             # conv_relu_bn(n_unit, n_unit, 1),
-            SelfAttention(n_unit, n_head, n_key),
+            SelfAttention(n_unit, n_head, n_key, n_value),
             # 3*(2+2)=12
             conv_relu_bn(n_unit, n_unit, 3),
             # conv_relu_bn(n_unit, n_unit, 1),
-            SelfAttention(n_unit, n_head, n_key),
+            SelfAttention(n_unit, n_head, n_key, n_value),
             # 3*(2+2+3*2)=30
             conv_relu_bn(n_unit, n_unit, 3, 1, 0, 3),
+            # SelfAttention(n_unit, n_head, n_key, n_value),
             conv_relu_bn(n_unit, n_unit, 3, 1, 0, 3),
+            # SelfAttention(n_unit, n_head, n_key, n_value),
             conv_relu_bn(n_unit, n_unit, 3, 1, 0, 3),
+            # SelfAttention(n_unit, n_head, n_key, n_value),
             conv_relu_bn(n_unit, n_unit, 1),
+            # SelfAttention(n_unit, n_head, n_key, n_value),
             # (B, U, 1)
         )
         # T=47 (169 - 29) / 3
@@ -224,3 +245,8 @@ class SelfAttentionTDNN(TDNNBase):
         self.init_weight()
         self.lda_mat = lda_mat
         self.set_lda()
+
+    def init_weight(self):
+        for p in self.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
