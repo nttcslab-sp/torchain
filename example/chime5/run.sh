@@ -21,7 +21,7 @@ egs_dir=$chain_dir/tdnn1a_sp/egs
 
 # training config
 use_ivector=True
-n_epoch=20
+n_epoch=10
 optim=Adam
 lr=1e-3
 xent_regularize=0.0
@@ -44,7 +44,7 @@ lda_mat=$chain_dir/tdnn1a_sp/lda.mat
 post_acwt=10.0
 # misc config
 stage=0
-
+momentum=0.0
 
 . ./parse_options.sh || exit 1;
 
@@ -74,7 +74,7 @@ else
 fi
 
 if [ -z $model_dir ]; then
-    model_dir=exp/torchain0.5_${optim}_lr${lr}_wd${weight_decay}_bs${batchsize}_epoch${n_epoch}_ag${accum_grad}_xent${xent_regularize}${use_lda}${use_ivector}
+    model_dir=exp/torchain0.5_${optim}_lr${lr}_mo${momentum}_wd${weight_decay}_bs${batchsize}_epoch${n_epoch}_ag${accum_grad}_xent${xent_regularize}${use_lda}${use_ivector}
 fi
 
 mkdir -p $model_dir
@@ -113,12 +113,12 @@ fi
 
 # TODO support multi GPU
 if [ $stage -le 1 ]; then
-    echo "=== stage 1: acoustic model training ==="
+    echo "=== stage 1: acoustic model training ==="; cp models.py $model_dir; cp train_faster.py $model_dir
     ${train_cmd} --gpu $ngpu $model_dir/log/train.log python train_faster.py \
                  --model_dir $model_dir \
                  --den_fst $chain_dir/tdnn1a_sp/den.fst \
                  --train_scp $scp_dir/train.scp --valid_scp $scp_dir/valid.scp \
-                 --optim $optim --xent_regularize $xent_regularize --lr ${lr} --weight_decay ${weight_decay} \
+                 --optim $optim --xent_regularize $xent_regularize --lr ${lr} --momentum ${momentum} --weight_decay ${weight_decay} \
                  --train_minibatch_size ${batchsize} --accum_grad ${accum_grad} --n_epoch ${n_epoch} ${train_opt}
 fi
 

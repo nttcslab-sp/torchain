@@ -29,6 +29,8 @@ def get_parser():
     # optimization
     parser.add_argument("--lr", default=1e-3, type=float,
                         help="learning rate")
+    parser.add_argument("--momentum", default=0.0, type=float,
+                        help="momentum")
     parser.add_argument("--optim", default="SGD", help="optimizer name")
     parser.add_argument("--weight_decay", default=5e-2, type=float,
                          help="weight decay")
@@ -96,14 +98,20 @@ def main():
         lda_mat = None
 
     # model preparation
-    model = models.SimpleTDNN(n_pdf, n_feat, n_ivec, lda_mat=lda_mat, args=args)
+    model = models.SelfAttentionTDNN(n_pdf, n_feat, n_ivec, lda_mat=lda_mat, args=args)
     model = torch.nn.DataParallel(model)
     model.cuda()
     logging.info(model)
     # params = iter(p for p in model.parameters() if p.requires_grad)
     params = model.module.kaldi_like_parameters()
-    opt_class = getattr(torch.optim, args.optim)
-    opt = opt_class(params, lr=args.lr, weight_decay=args.weight_decay)
+    if args.optim == "Nesterov":
+        opt = torch.optim.SGD(params, lr=args.lr, weight_decay=args.weight_decay, nesterov=True, momentum=args.momentum)
+    else:
+        opt_class = getattr(torch.optim, args.optim)
+        opt = opt_class(params, lr=args.lr, weight_decay=args.weight_decay)
+        for p in opt.param_groups:
+            if "momentum" in p:
+                p["momentum"] = args.momentum
     best_loss = float("inf")
 
     def forward(data, idx):
@@ -127,12 +135,13 @@ def main():
         model.train()
         train_result = ChainResults()
         train_egs.reset() # re-shuffle
-        for i, data in enumerate(train_egs):
+        for i, data in enumerate(train_egs, 1):
             idx = None # example.indexes
             loss, results = forward(data, idx)
-            opt.zero_grad()
             loss.backward()
-            opt.step()
+            if i % args.accum_grad == 0:
+                opt.step()
+                opt.zero_grad()
             train_result.data += results.data
             logging.info("train loss: {}, average: {}, iter {} / {}".format(
                 results, train_result.loss, i, train_egs.n_batch))
@@ -143,7 +152,7 @@ def main():
         valid_result = ChainResults()
         valid_egs.reset()
         with torch.no_grad():
-            for i, data in enumerate(valid_egs):
+            for i, data in enumerate(valid_egs, 1):
                 idx = None # example.indexes
                 loss, results = forward(data, idx)
                 valid_result.data += results.data
