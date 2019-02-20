@@ -1,12 +1,9 @@
-# PyTorch FFI package with Kaldi and ATen
+# PyTorch binding of Kaldi Lattice-Free MMI Loss
+
+Currently this project is developed with pytroch 0.4.0 and kaldi 22fbdd (CHiME5 baseline). We will support pytorch 1.0.0 and latest kaldi soon.
 
 ``` console
-# with pytorch 0.4.0
-$ source /data/work49/skarita/tool/miniconda3/bin/activate torch
-# or with pytorch 0.3.1
-$ source /data/work70/skarita/exp/chime5/venv/bin/activate
-
-$ make test KALDI_ROOT=/data/work70/skarita/exp/chime5/kaldi-22fbdd
+$ make test KALDI_ROOT=<your kaldi-22fbdd>
 ```
 
 then you will see stdout like this
@@ -38,12 +35,11 @@ then you will see stdout like this
 
 ## TODO
 
-- use TDNN and check setup/speed/logprob/WER compatible with kaldi s5 recipe http://kishin-gitlab.cslab.kecl.ntt.co.jp/KOJIONO/pysoliton2_models/blob/master/psl2models/basic/tdnns.py
-- display number of chunks for each epoch in example/chime5/train.py
+- support pytorch 1.0.0 (maybe C++ API) and latest kaldi
 - support xent_regularization
 - support multi GPU in example/chime5/train.py
-- support to access `std::vector<Index> indexes` in `kaldi::nnet3::NnetChainSupervision` https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-chain-example.h#L48-L56
-- support to provide `n_time_width` and `n_time_stride` in example/chime5/train.py
+- support `std::vector<Index> indexes` in `kaldi::nnet3::NnetChainSupervision` https://github.com/kaldi-asr/kaldi/blob/master/src/nnet3/nnet-chain-example.h#L48-L56
+- support `n_time_width` and `n_time_stride` in example/chime5/train.py
 - decode with online i-vector (aux feat) in example/chime5/run.sh
 
 
